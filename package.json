@@ -1,0 +1,15 @@
+{
+  "name": "succession",
+  "version": "1.0.0",
+  "description": "A system for expert interviews and persona building.",
+  "main": "src/api/api.js",
+  "scripts": {
+    "start": "node src/api/api.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
