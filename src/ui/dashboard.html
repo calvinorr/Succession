@@ -487,7 +487,7 @@
                                 <span class="font-medium text-surface-800">${interview.expertName || 'Unknown Expert'}</span>
                             </div>
                         </td>
-                        <td class="py-4 px-5 text-surface-500 text-sm">${interview.role}</td>
+                        <td class="py-4 px-5 text-surface-500 text-sm">${interview.role || 'Not assigned'}</td>
                         <td class="py-4 px-5">
                             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${statusColors[interview.status] || statusColors['scheduled']}">
                                 ${statusLabels[interview.status] || 'Scheduled'}

@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Succession | New Interview Setup</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand': {
+                            50: '#eef4ff',
+                            100: '#d9e5ff',
+                            200: '#bcd2ff',
+                            300: '#8eb5ff',
+                            400: '#598eff',
+                            500: '#3366ff',
+                            600: '#1a44f5',
+                            700: '#1333e1',
+                            800: '#162bb6',
+                            900: '#182a8f',
+                        },
+                        'surface': {
+                            0: '#ffffff',
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    },
+                    fontFamily: {
+                        'display': ['"DM Serif Display"', 'serif'],
+                        'body': ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glow': '0 0 40px -10px rgba(51, 102, 255, 0.3)',
+                        'card': '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
+                        'card-hover': '0 4px 20px rgba(0,0,0,0.08), 0 0 0 1px rgba(51, 102, 255, 0.1)',
+                        'inner-glow': 'inset 0 1px 0 rgba(255,255,255,0.8)',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'slide-up': 'slideUp 0.5s ease-out forwards',
+                        'scale-in': 'scaleIn 0.3s ease-out forwards',
+                        'shimmer': 'shimmer 2s infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(16px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        scaleIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.95)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        },
+                        shimmer: {
+                            '0%': { backgroundPosition: '-200% 0' },
+                            '100%': { backgroundPosition: '200% 0' },
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        /* Subtle grain texture overlay */
+        .grain::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.02;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Staggered animation delays */
+        .stagger-1 { animation-delay: 0.05s; }
+        .stagger-2 { animation-delay: 0.1s; }
+        .stagger-3 { animation-delay: 0.15s; }
+        .stagger-4 { animation-delay: 0.2s; }
+        .stagger-5 { animation-delay: 0.25s; }
+        .stagger-6 { animation-delay: 0.3s; }
+
+        /* Progress bar animation */
+        .progress-bar {
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Topic drag handle */
+        .drag-handle {
+            cursor: grab;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        /* Hide steps that aren't active */
+        .step-content {
+            display: none;
+        }
+        .step-content.active {
+            display: block;
+        }
+
+        /* Smooth transitions for step changes */
+        .step-transition {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        /* Form input focus styles */
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(51, 102, 255, 0.1);
+        }
+    </style>
+</head>
+
+<body class="bg-surface-50 font-body text-surface-800 h-screen flex overflow-hidden grain">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-surface-0 border-r border-surface-200/80 flex flex-col h-full flex-shrink-0 relative z-10">
+        <div class="flex flex-col h-full p-5">
+
+            <!-- Logo -->
+            <div class="flex items-center gap-3 mb-10 px-1 opacity-0 animate-fade-in">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-glow">
+                    <span class="material-symbols-outlined text-white text-xl">hub</span>
+                </div>
+                <div>
+                    <h1 class="font-display text-xl text-surface-900 tracking-tight">Succession</h1>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-surface-400 font-medium">Expert Systems</p>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex flex-col gap-1 flex-1">
+                <a href="dashboard.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 group transition-all duration-200 opacity-0 animate-slide-up stagger-1">
+                    <span class="material-symbols-outlined text-[20px]">space_dashboard</span>
+                    <span class="text-sm font-medium">Dashboard</span>
+                </a>
+                <a href="index.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl bg-brand-50 text-brand-600 group transition-all duration-200 opacity-0 animate-slide-up stagger-2">
+                    <span class="material-symbols-outlined filled text-[20px]">mic</span>
+                    <span class="text-sm font-semibold">Interviews</span>
+                </a>
+                <a href="personas.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 group transition-all duration-200 opacity-0 animate-slide-up stagger-3">
+                    <span class="material-symbols-outlined text-[20px]">person_search</span>
+                    <span class="text-sm font-medium">Personas</span>
+                </a>
+                <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 group transition-all duration-200 opacity-0 animate-slide-up stagger-4">
+                    <span class="material-symbols-outlined text-[20px]">bar_chart</span>
+                    <span class="text-sm font-medium">Reports</span>
+                </a>
+
+                <div class="flex-1"></div>
+
+                <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 group transition-all duration-200">
+                    <span class="material-symbols-outlined text-[20px]">settings</span>
+                    <span class="text-sm font-medium">Settings</span>
+                </a>
+            </nav>
+
+            <!-- User Profile -->
+            <div class="border-t border-surface-200/80 pt-5 mt-4">
+                <div class="flex items-center gap-3 px-1">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+                        CU
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-surface-800 truncate">Calvin User</p>
+                        <p class="text-xs text-surface-400 truncate">admin@succession.io</p>
+                    </div>
+                    <button class="p-1.5 rounded-lg hover:bg-surface-100 text-surface-400 hover:text-surface-600 transition-colors">
+                        <span class="material-symbols-outlined text-[18px]">more_vert</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-surface-50">
+
+        <!-- Header with Breadcrumbs -->
+        <header class="px-8 py-6 bg-surface-0 border-b border-surface-200/60 flex-shrink-0">
+            <div class="opacity-0 animate-fade-in">
+                <!-- Breadcrumbs -->
+                <nav class="flex items-center gap-2 text-sm mb-4">
+                    <a href="dashboard.html" class="text-surface-400 hover:text-surface-600 transition-colors">Home</a>
+                    <span class="text-surface-300">/</span>
+                    <a href="index.html" class="text-surface-400 hover:text-surface-600 transition-colors">Interviews</a>
+                    <span class="text-surface-300">/</span>
+                    <span class="text-surface-600 font-medium">New Interview</span>
+                </nav>
+
+                <h1 class="font-display text-3xl text-surface-900 tracking-tight">Create New Interview</h1>
+                <p class="text-surface-500 text-sm mt-1">Set up expert details, define topics, and start capturing knowledge.</p>
+            </div>
+        </header>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto">
+            <div class="p-8 max-w-4xl mx-auto">
+
+                <!-- Progress Bar -->
+                <div class="mb-8 opacity-0 animate-fade-in">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm font-semibold text-brand-600">Setup Progress</p>
+                        <p id="progress-text" class="text-sm text-surface-500 font-medium">25% Complete</p>
+                    </div>
+                    <div class="w-full h-2 bg-surface-200 rounded-full overflow-hidden">
+                        <div id="progress-bar" class="progress-bar h-full bg-gradient-to-r from-brand-500 to-brand-600 rounded-full" style="width: 25%"></div>
+                    </div>
+                </div>
+
+                <!-- Step 1: Logistics -->
+                <div id="step-1" class="step-content active step-transition">
+                    <div class="bg-surface-0 rounded-2xl border border-surface-200/60 shadow-card p-8 mb-6 opacity-0 animate-slide-up">
+                        <div class="flex items-start gap-3 mb-6">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-sm flex-shrink-0">
+                                <span class="material-symbols-outlined filled text-white text-xl">edit_note</span>
+                            </div>
+                            <div>
+                                <h2 class="font-display text-xl text-surface-900">1. Logistics</h2>
+                                <p class="text-sm text-surface-500 mt-1">Basic project information and expert details</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-5">
+                            <!-- Interview Title -->
+                            <div>
+                                <label for="interview-title" class="block text-sm font-semibold text-surface-700 mb-2">
+                                    Interview Title <span class="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    id="interview-title"
+                                    placeholder="e.g. Month-End Close Process Knowledge Transfer"
+                                    class="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-surface-800 placeholder:text-surface-400 transition-all hover:border-surface-300"
+                                    required
+                                >
+                            </div>
+
+                            <!-- Expert Name -->
+                            <div>
+                                <label for="expert-name" class="block text-sm font-semibold text-surface-700 mb-2">
+                                    Expert Name <span class="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    id="expert-name"
+                                    placeholder="e.g. Sarah Johnson"
+                                    class="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-surface-800 placeholder:text-surface-400 transition-all hover:border-surface-300"
+                                    required
+                                >
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-5">
+                                <!-- Expert Role -->
+                                <div>
+                                    <label for="expert-role" class="block text-sm font-semibold text-surface-700 mb-2">
+                                        Expert Role <span class="text-red-500">*</span>
+                                    </label>
+                                    <div class="relative">
+                                        <select
+                                            id="expert-role"
+                                            class="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-surface-800 appearance-none cursor-pointer transition-all hover:border-surface-300"
+                                            required
+                                        >
+                                            <option value="">Select a role...</option>
+                                            <option value="Finance Director">Finance Director</option>
+                                            <option value="Head of AP">Head of AP</option>
+                                            <option value="Head of AR">Head of AR</option>
+                                            <option value="Head of Treasury">Head of Treasury</option>
+                                        </select>
+                                        <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none">expand_more</span>
+                                    </div>
+                                </div>
+
+                                <!-- Deadline -->
+                                <div>
+                                    <label for="deadline" class="block text-sm font-semibold text-surface-700 mb-2">
+                                        Target Deadline
+                                    </label>
+                                    <div class="relative">
+                                        <input
+                                            type="date"
+                                            id="deadline"
+                                            class="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-surface-800 transition-all hover:border-surface-300"
+                                        >
+                                        <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none">calendar_today</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Description -->
+                            <div>
+                                <label for="description" class="block text-sm font-semibold text-surface-700 mb-2">
+                                    Description
+                                </label>
+                                <textarea
+                                    id="description"
+                                    rows="4"
+                                    placeholder="Briefly describe the goal of these interviews..."
+                                    class="w-full px-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-surface-800 placeholder:text-surface-400 resize-none transition-all hover:border-surface-300"
+                                ></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Agenda & Topics -->
+                <div id="step-2" class="step-content step-transition">
+                    <div class="bg-surface-0 rounded-2xl border border-surface-200/60 shadow-card p-8 mb-6 opacity-0 animate-slide-up">
+                        <div class="flex items-start justify-between mb-6">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-sm flex-shrink-0">
+                                    <span class="material-symbols-outlined filled text-white text-xl">list</span>
+                                </div>
+                                <div>
+                                    <h2 class="font-display text-xl text-surface-900">2. Agenda & Topics</h2>
+                                    <p class="text-sm text-surface-500 mt-1">Define discussion topics and customize the interview flow</p>
+                                </div>
+                            </div>
+                            <button
+                                id="add-topic-btn"
+                                class="flex items-center gap-2 px-4 py-2 bg-brand-50 text-brand-600 rounded-xl text-sm font-semibold hover:bg-brand-100 transition-colors"
+                            >
+                                <span class="material-symbols-outlined text-[18px]">add</span>
+                                Add Topic
+                            </button>
+                        </div>
+
+                        <div id="topics-container" class="space-y-3">
+                            <!-- Topics will be dynamically inserted here -->
+                        </div>
+
+                        <div class="mt-6 p-4 bg-surface-50 rounded-xl border border-surface-200">
+                            <p class="text-xs text-surface-500">
+                                <span class="material-symbols-outlined text-[14px] inline-block align-middle mr-1">info</span>
+                                <strong>Tip:</strong> Topics are pre-populated based on the selected role. You can add, remove, or reorder them to customize your interview.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="flex items-center justify-between gap-4 opacity-0 animate-fade-in stagger-2">
+                    <div>
+                        <button
+                            id="back-btn"
+                            class="hidden items-center gap-2 px-5 py-3 bg-surface-0 border border-surface-200 text-surface-600 rounded-xl text-sm font-semibold hover:bg-surface-50 hover:border-surface-300 transition-all"
+                        >
+                            <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                            Back
+                        </button>
+                        <button
+                            id="cancel-btn"
+                            class="flex items-center gap-2 px-5 py-3 text-surface-500 rounded-xl text-sm font-medium hover:text-surface-700 hover:bg-surface-100 transition-all"
+                            onclick="window.location.href='dashboard.html'"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <button
+                            id="save-draft-btn"
+                            class="flex items-center gap-2 px-5 py-3 bg-surface-0 border border-surface-200 text-surface-700 rounded-xl text-sm font-semibold hover:bg-surface-50 hover:border-surface-300 transition-all"
+                        >
+                            Save Draft
+                        </button>
+                        <button
+                            id="continue-btn"
+                            class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white rounded-xl text-sm font-semibold shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
+                        >
+                            <span id="continue-text">Save & Continue</span>
+                            <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // State management
+        let currentStep = 1;
+        const totalSteps = 2;
+
+        // Form data
+        let formData = {
+            interviewTitle: '',
+            expertName: '',
+            role: '',
+            deadline: '',
+            description: '',
+            topics: []
+        };
+
+        // Default topics based on role
+        const defaultTopics = {
+            'Finance Director': [
+                { title: 'Strategic Financial Planning', description: 'Long-term financial strategy, budgeting frameworks, and capital allocation decisions.' },
+                { title: 'Risk Management & Compliance', description: 'Financial risk assessment, regulatory compliance, and internal controls.' },
+                { title: 'Team Leadership & Development', description: 'Building high-performing finance teams and succession planning strategies.' },
+                { title: 'Technology & Digital Transformation', description: 'ERP systems, automation, and modernizing finance operations.' }
+            ],
+            'Head of AP': [
+                { title: 'Accounts Payable Processes', description: 'Invoice processing workflows, approval hierarchies, and payment cycles.' },
+                { title: 'Vendor Management', description: 'Vendor relationships, payment terms negotiation, and dispute resolution.' },
+                { title: 'Automation & Technology', description: 'AP automation tools, OCR technology, and system integrations.' },
+                { title: 'Controls & Compliance', description: 'Fraud prevention, segregation of duties, and audit readiness.' }
+            ],
+            'Head of AR': [
+                { title: 'Accounts Receivable Strategy', description: 'Credit policies, collection procedures, and cash application processes.' },
+                { title: 'Customer Relations', description: 'Managing customer accounts, dispute resolution, and credit terms.' },
+                { title: 'Cash Flow Optimization', description: 'DSO reduction strategies, early payment incentives, and forecasting.' },
+                { title: 'Technology & Reporting', description: 'AR automation, aging reports, and KPI tracking.' }
+            ],
+            'Head of Treasury': [
+                { title: 'Cash Management', description: 'Cash positioning, liquidity management, and working capital optimization.' },
+                { title: 'Banking Relationships', description: 'Bank account structures, relationship management, and treasury services.' },
+                { title: 'Risk & Hedging', description: 'FX risk management, interest rate hedging, and derivative instruments.' },
+                { title: 'Treasury Technology', description: 'TMS implementation, payment systems, and treasury automation.' }
+            ]
+        };
+
+        // Load draft from localStorage on page load
+        function loadDraft() {
+            const draft = localStorage.getItem('interviewSetupDraft');
+            if (draft) {
+                try {
+                    formData = JSON.parse(draft);
+                    populateForm();
+                    console.log('Draft loaded from localStorage');
+                } catch (e) {
+                    console.error('Error loading draft:', e);
+                }
+            }
+        }
+
+        // Populate form fields with saved data
+        function populateForm() {
+            document.getElementById('interview-title').value = formData.interviewTitle || '';
+            document.getElementById('expert-name').value = formData.expertName || '';
+            document.getElementById('expert-role').value = formData.role || '';
+            document.getElementById('deadline').value = formData.deadline || '';
+            document.getElementById('description').value = formData.description || '';
+
+            if (formData.topics && formData.topics.length > 0) {
+                renderTopics();
+            }
+        }
+
+        // Save draft to localStorage
+        function saveDraft() {
+            collectFormData();
+            localStorage.setItem('interviewSetupDraft', JSON.stringify(formData));
+
+            // Show feedback
+            const btn = document.getElementById('save-draft-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">check</span> Saved!';
+            btn.classList.add('bg-emerald-50', 'text-emerald-600', 'border-emerald-200');
+
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.remove('bg-emerald-50', 'text-emerald-600', 'border-emerald-200');
+            }, 2000);
+
+            console.log('Draft saved to localStorage');
+        }
+
+        // Collect form data from inputs
+        function collectFormData() {
+            formData.interviewTitle = document.getElementById('interview-title').value;
+            formData.expertName = document.getElementById('expert-name').value;
+            formData.role = document.getElementById('expert-role').value;
+            formData.deadline = document.getElementById('deadline').value;
+            formData.description = document.getElementById('description').value;
+        }
+
+        // Update progress bar
+        function updateProgress() {
+            const percentage = (currentStep / totalSteps) * 100;
+            document.getElementById('progress-bar').style.width = percentage + '%';
+            document.getElementById('progress-text').textContent = Math.round(percentage) + '% Complete';
+        }
+
+        // Navigate to next step
+        function nextStep() {
+            // Validate current step
+            if (currentStep === 1) {
+                const title = document.getElementById('interview-title').value.trim();
+                const name = document.getElementById('expert-name').value.trim();
+                const role = document.getElementById('expert-role').value;
+
+                if (!title || !name || !role) {
+                    alert('Please fill in all required fields (Interview Title, Expert Name, and Expert Role)');
+                    return;
+                }
+
+                collectFormData();
+
+                // Load default topics if none exist
+                if (formData.topics.length === 0) {
+                    formData.topics = defaultTopics[role] || [];
+                }
+                renderTopics();
+            }
+
+            if (currentStep === 2) {
+                // Final step - start interview
+                startInterview();
+                return;
+            }
+
+            // Move to next step
+            document.getElementById(`step-${currentStep}`).classList.remove('active');
+            currentStep++;
+            document.getElementById(`step-${currentStep}`).classList.add('active');
+
+            updateProgress();
+            updateButtons();
+
+            // Scroll to top
+            document.querySelector('.overflow-y-auto').scrollTop = 0;
+        }
+
+        // Navigate to previous step
+        function previousStep() {
+            if (currentStep === 1) return;
+
+            document.getElementById(`step-${currentStep}`).classList.remove('active');
+            currentStep--;
+            document.getElementById(`step-${currentStep}`).classList.add('active');
+
+            updateProgress();
+            updateButtons();
+
+            // Scroll to top
+            document.querySelector('.overflow-y-auto').scrollTop = 0;
+        }
+
+        // Update button visibility and text
+        function updateButtons() {
+            const backBtn = document.getElementById('back-btn');
+            const cancelBtn = document.getElementById('cancel-btn');
+            const continueText = document.getElementById('continue-text');
+
+            if (currentStep === 1) {
+                backBtn.classList.add('hidden');
+                backBtn.classList.remove('flex');
+                cancelBtn.classList.remove('hidden');
+                continueText.textContent = 'Save & Continue';
+            } else if (currentStep === 2) {
+                backBtn.classList.remove('hidden');
+                backBtn.classList.add('flex');
+                cancelBtn.classList.add('hidden');
+                continueText.textContent = 'Start Interview';
+            }
+        }
+
+        // Render topics list
+        function renderTopics() {
+            const container = document.getElementById('topics-container');
+
+            if (formData.topics.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-surface-400">
+                        <span class="material-symbols-outlined text-4xl mb-2 block">playlist_add</span>
+                        <p class="text-sm">No topics yet. Click "Add Topic" to get started.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = formData.topics.map((topic, index) => `
+                <div class="group bg-surface-50 border border-surface-200 rounded-xl p-4 hover:border-surface-300 transition-all" data-index="${index}">
+                    <div class="flex items-start gap-3">
+                        <button class="drag-handle p-1 text-surface-400 hover:text-surface-600 transition-colors mt-1">
+                            <span class="material-symbols-outlined text-[20px]">drag_indicator</span>
+                        </button>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-start justify-between gap-3 mb-2">
+                                <input
+                                    type="text"
+                                    value="${topic.title}"
+                                    placeholder="Topic title"
+                                    class="flex-1 font-semibold text-surface-800 bg-transparent border-none p-0 focus:outline-none focus:ring-0"
+                                    onchange="updateTopic(${index}, 'title', this.value)"
+                                >
+                                <button
+                                    onclick="removeTopic(${index})"
+                                    class="p-1.5 rounded-lg text-surface-400 hover:text-red-600 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                                    title="Remove topic"
+                                >
+                                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                                </button>
+                            </div>
+                            <textarea
+                                rows="2"
+                                placeholder="Brief description of what to discuss..."
+                                class="w-full text-sm text-surface-500 bg-transparent border-none p-0 resize-none focus:outline-none focus:ring-0"
+                                onchange="updateTopic(${index}, 'description', this.value)"
+                            >${topic.description || ''}</textarea>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Add new topic
+        function addTopic() {
+            formData.topics.push({
+                title: '',
+                description: ''
+            });
+            renderTopics();
+
+            // Focus on the new topic's title input
+            setTimeout(() => {
+                const inputs = document.querySelectorAll('#topics-container input[type="text"]');
+                if (inputs.length > 0) {
+                    inputs[inputs.length - 1].focus();
+                }
+            }, 100);
+        }
+
+        // Remove topic
+        function removeTopic(index) {
+            if (confirm('Are you sure you want to remove this topic?')) {
+                formData.topics.splice(index, 1);
+                renderTopics();
+            }
+        }
+
+        // Update topic field
+        function updateTopic(index, field, value) {
+            if (formData.topics[index]) {
+                formData.topics[index][field] = value;
+            }
+        }
+
+        // Start interview - call API and redirect
+        async function startInterview() {
+            try {
+                collectFormData();
+
+                // Show loading state
+                const btn = document.getElementById('continue-btn');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span> Starting...';
+                btn.disabled = true;
+
+                // Prepare API payload
+                const payload = {
+                    role: formData.role,
+                    expertName: formData.expertName,
+                    interviewTitle: formData.interviewTitle,
+                    deadline: formData.deadline,
+                    description: formData.description,
+                    topics: formData.topics
+                };
+
+                console.log('Starting interview with payload:', payload);
+
+                // Call API
+                const response = await fetch('/interviews/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status} ${response.statusText}`);
+                }
+
+                const interview = await response.json();
+                console.log('Interview created:', interview);
+
+                // Clear draft from localStorage
+                localStorage.removeItem('interviewSetupDraft');
+
+                // Redirect to interview page with ID
+                window.location.href = `index.html?id=${interview.id}`;
+
+            } catch (error) {
+                console.error('Error starting interview:', error);
+                alert('Failed to start interview. Please try again.\n\nError: ' + error.message);
+
+                // Restore button
+                const btn = document.getElementById('continue-btn');
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        }
+
+        // Event listeners
+        document.getElementById('save-draft-btn').addEventListener('click', saveDraft);
+        document.getElementById('continue-btn').addEventListener('click', nextStep);
+        document.getElementById('back-btn').addEventListener('click', previousStep);
+        document.getElementById('add-topic-btn').addEventListener('click', addTopic);
+
+        // Auto-save on role change to load default topics
+        document.getElementById('expert-role').addEventListener('change', function() {
+            const role = this.value;
+            if (role && formData.topics.length === 0) {
+                formData.topics = defaultTopics[role] || [];
+            }
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDraft();
+            updateProgress();
+            updateButtons();
+        });
+    </script>
+</body>
+</html>

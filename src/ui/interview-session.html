@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Session | Succession</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand': {
+                            50: '#eef4ff',
+                            100: '#d9e5ff',
+                            200: '#bcd2ff',
+                            300: '#8eb5ff',
+                            400: '#598eff',
+                            500: '#3366ff',
+                            600: '#1a44f5',
+                            700: '#1333e1',
+                            800: '#162bb6',
+                            900: '#182a8f',
+                        },
+                        'surface': {
+                            0: '#ffffff',
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    },
+                    fontFamily: {
+                        'display': ['"DM Serif Display"', 'serif'],
+                        'body': ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glow': '0 0 40px -10px rgba(51, 102, 255, 0.3)',
+                        'card': '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
+                        'card-hover': '0 4px 20px rgba(0,0,0,0.08), 0 0 0 1px rgba(51, 102, 255, 0.1)',
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                },
+            },
+        }
+    </script>
+
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Contenteditable placeholder */
+        [contenteditable]:empty:before {
+            content: attr(data-placeholder);
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        /* Tag styling */
+        .insight-tag, .quote-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-right: 4px;
+            border: 1px solid;
+        }
+
+        .insight-tag {
+            background-color: #eef4ff;
+            color: #1a44f5;
+            border-color: #bcd2ff;
+        }
+
+        .quote-tag {
+            background-color: #fff7ed;
+            color: #c2410c;
+            border-color: #fed7aa;
+        }
+
+        /* Recording pulse animation */
+        @keyframes recording-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .recording-indicator {
+            animation: recording-pulse 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+
+<body class="bg-surface-50 font-body text-surface-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- Top Header -->
+    <header class="h-16 flex-none bg-surface-0 border-b border-surface-200/80 flex items-center justify-between px-6 z-20">
+        <div class="flex items-center gap-4">
+            <!-- Logo -->
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-glow">
+                <span class="material-symbols-outlined text-white text-[18px]">hub</span>
+            </div>
+            <h1 class="font-display text-lg text-surface-900 tracking-tight">Succession</h1>
+
+            <div class="h-4 w-px bg-surface-200 mx-2"></div>
+
+            <!-- Session Info -->
+            <div class="flex items-center gap-2 text-sm">
+                <span class="text-surface-500">Session with</span>
+                <span id="expert-name" class="font-semibold text-surface-800">Loading...</span>
+            </div>
+        </div>
+
+        <!-- Center: Timer & Recording -->
+        <div class="flex items-center gap-4 bg-surface-50 px-4 py-1.5 rounded-full border border-surface-200">
+            <div class="flex items-center gap-2 text-red-500 recording-indicator">
+                <span class="material-symbols-outlined filled text-[16px]">fiber_manual_record</span>
+                <span class="text-xs font-bold uppercase tracking-wider">REC</span>
+            </div>
+            <div class="w-px h-4 bg-surface-200"></div>
+            <div class="flex items-center">
+                <span id="timer" class="font-mono font-semibold text-base tabular-nums text-surface-700">00:00</span>
+            </div>
+        </div>
+
+        <!-- Right: Actions -->
+        <div class="flex items-center gap-3">
+            <div id="autosave-indicator" class="flex items-center gap-2 mr-2">
+                <span class="text-xs text-surface-500">Auto-saved</span>
+                <span class="material-symbols-outlined text-green-500 text-[16px]">cloud_done</span>
+            </div>
+            <button id="end-session-btn" class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+                End Session
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="flex flex-1 overflow-hidden">
+
+        <!-- Left Sidebar: Interview Structure -->
+        <aside class="w-72 flex-none bg-surface-0 border-r border-surface-200/80 flex flex-col overflow-y-auto">
+            <div class="p-5">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-surface-500 mb-4">Interview Structure</h3>
+
+                <!-- Timeline -->
+                <div id="phase-timeline" class="relative pl-2">
+                    <!-- Vertical line -->
+                    <div class="absolute left-[11px] top-2 bottom-4 w-[2px] bg-surface-200"></div>
+
+                    <!-- Phases will be inserted here by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Persona Goals (Bottom of Sidebar) -->
+            <div class="mt-auto p-4 border-t border-surface-200/80 bg-surface-50/50">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="material-symbols-outlined text-surface-500 text-[18px]">person_search</span>
+                    <h4 class="text-xs font-bold uppercase text-surface-500">Interview Goals</h4>
+                </div>
+                <div id="persona-goals" class="text-sm text-surface-700 space-y-2">
+                    <p class="leading-snug">🎯 Capture deep expert knowledge</p>
+                    <p class="leading-snug">🎯 Build successor support system</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content: Question & Notes -->
+        <main class="flex-1 flex flex-col min-w-0 relative">
+
+            <!-- Active Question Panel -->
+            <div class="flex-none p-6 pb-4">
+                <div class="bg-brand-50/50 border border-brand-200 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-brand-500"></div>
+
+                    <div class="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                        <div class="flex-1 space-y-3">
+                            <!-- Question Header -->
+                            <div class="flex items-center gap-2 mb-1">
+                                <span id="question-badge" class="bg-brand-500/10 text-brand-600 text-xs font-bold px-2.5 py-1 rounded uppercase tracking-wide">
+                                    Question 1
+                                </span>
+                                <span id="question-phase" class="text-surface-500 text-xs">• Warm-up</span>
+                            </div>
+
+                            <!-- Question Text -->
+                            <h2 id="current-question" class="text-2xl font-bold leading-tight text-surface-900">
+                                Loading question...
+                            </h2>
+
+                            <!-- Suggested Follow-ups -->
+                            <div id="follow-ups" class="flex flex-wrap gap-2 pt-1">
+                                <!-- Follow-up chips will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Mark Covered Checkbox -->
+                        <div class="flex-none self-start">
+                            <label class="cursor-pointer flex items-center gap-3 group/check">
+                                <span class="text-sm font-medium text-surface-500 group-hover/check:text-brand-500 transition-colors">Mark Covered</span>
+                                <div class="relative flex items-center">
+                                    <input id="mark-covered" type="checkbox" class="peer h-6 w-6 cursor-pointer appearance-none rounded border border-surface-300 bg-surface-0 checked:border-brand-500 checked:bg-brand-500 transition-all"/>
+                                    <span class="material-symbols-outlined absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[18px] text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none">check</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes Capture Area -->
+            <div class="flex-1 flex flex-col p-6 pt-2 min-h-0">
+                <div class="flex-1 bg-surface-0 rounded-2xl border border-surface-200/80 shadow-card flex flex-col overflow-hidden">
+
+                    <!-- Toolbar -->
+                    <div class="flex-none border-b border-surface-200/80 p-2 flex items-center gap-1 bg-surface-50/50">
+                        <button id="btn-bold" class="p-2 rounded hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors" title="Bold">
+                            <span class="material-symbols-outlined text-[20px]">format_bold</span>
+                        </button>
+                        <button id="btn-italic" class="p-2 rounded hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors" title="Italic">
+                            <span class="material-symbols-outlined text-[20px]">format_italic</span>
+                        </button>
+
+                        <div class="w-px h-5 bg-surface-200 mx-1"></div>
+
+                        <button id="btn-bullet" class="p-2 rounded hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors" title="Bullet List">
+                            <span class="material-symbols-outlined text-[20px]">format_list_bulleted</span>
+                        </button>
+                        <button id="btn-number" class="p-2 rounded hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors" title="Numbered List">
+                            <span class="material-symbols-outlined text-[20px]">format_list_numbered</span>
+                        </button>
+
+                        <div class="w-px h-5 bg-surface-200 mx-1"></div>
+
+                        <button id="btn-insight" class="px-3 py-2 rounded hover:bg-brand-50 text-brand-600 font-medium text-sm flex items-center gap-1 transition-colors">
+                            <span class="material-symbols-outlined text-[18px]">sell</span>
+                            <span>#insight</span>
+                        </button>
+                        <button id="btn-quote" class="px-3 py-2 rounded hover:bg-orange-50 text-orange-600 font-medium text-sm flex items-center gap-1 transition-colors">
+                            <span class="material-symbols-outlined text-[18px]">format_quote</span>
+                            <span>#quote</span>
+                        </button>
+                    </div>
+
+                    <!-- Rich Text Area -->
+                    <div
+                        id="notes-editor"
+                        class="flex-1 p-6 overflow-y-auto outline-none text-surface-800 text-base leading-relaxed"
+                        contenteditable="true"
+                        data-placeholder="Take notes during the interview... Use #insight and #quote tags to highlight key moments."
+                    ></div>
+
+                    <!-- Bottom Status -->
+                    <div class="flex-none px-4 py-2 border-t border-surface-200/80 text-xs text-surface-500 flex justify-between">
+                        <span>Markdown supported</span>
+                        <span id="word-count">0 words</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Navigation -->
+            <div class="flex-none p-6 pt-0 flex items-center justify-between">
+                <button id="prev-question-btn" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-surface-500 hover:text-surface-700 hover:bg-surface-100 border border-transparent hover:border-surface-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                    <span class="font-semibold text-sm">Previous</span>
+                </button>
+
+                <div class="flex items-center gap-3">
+                    <button id="bookmark-btn" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-surface-600 hover:text-brand-600 hover:bg-brand-50 transition-all">
+                        <span class="material-symbols-outlined text-[20px]">bookmark_add</span>
+                        <span class="font-semibold text-sm">Bookmark Moment</span>
+                    </button>
+
+                    <button id="next-question-btn" class="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all transform hover:-translate-y-0.5 active:translate-y-0">
+                        <span class="font-semibold text-sm">Next Question</span>
+                        <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+                        <span class="ml-2 px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-medium hidden lg:inline-block">⌘ ↵</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // State management
+        let interviewId = null;
+        let interview = null;
+        let currentQuestionIndex = 0;
+        let startTime = Date.now();
+        let timerInterval = null;
+
+        // Phase configuration
+        const PHASES = [
+            { id: 'warm-up', name: 'Intro & Setup', description: 'Build rapport and context', icon: 'waving_hand' },
+            { id: 'core-frameworks', name: 'Core Frameworks', description: 'Mental models & approaches', icon: 'psychology' },
+            { id: 'cases', name: 'Cases & Scenarios', description: 'Real-world applications', icon: 'assignment' },
+            { id: 'meta', name: 'Reflection & Wisdom', description: 'Lessons and advice', icon: 'lightbulb' },
+            { id: 'complete', name: 'Complete', description: 'Session finished', icon: 'check_circle' }
+        ];
+
+        // Default questions by phase (used as fallback)
+        const DEFAULT_QUESTIONS = {
+            'warm-up': [
+                {
+                    text: "Tell me about your role and what a typical month looks like for you - both the regular rhythms and the unpredictable parts.",
+                    followUps: ["Ask about daily routines", "Explore peak busy periods"]
+                },
+                {
+                    text: "What takes up most of your time, and what are your biggest challenges?",
+                    followUps: ["Probe on time wasters", "Ask about resource constraints"]
+                }
+            ],
+            'core-frameworks': [
+                {
+                    text: "Walk me through your mental model for approaching complex financial decisions. What framework guides your thinking?",
+                    followUps: ["Ask about risk assessment", "Explore decision criteria"]
+                }
+            ],
+            'cases': [
+                {
+                    text: "Tell me about a time when you had to make a difficult decision under pressure. What made it challenging?",
+                    followUps: ["Ask about stakeholder impact", "Explore what you'd do differently"]
+                }
+            ],
+            'meta': [
+                {
+                    text: "Looking back, what took you the longest to learn in this role? What helped you learn it?",
+                    followUps: ["Ask about unwritten rules", "Explore critical relationships"]
+                }
+            ]
+        };
+
+        // Questions derived from interview topics/data
+        let sessionQuestions = [];
+        let coveredQuestions = new Set();
+
+        // Initialize
+        async function init() {
+            // Get interview ID from URL params
+            const urlParams = new URLSearchParams(window.location.search);
+            interviewId = urlParams.get('id');
+
+            if (!interviewId) {
+                alert('No interview ID provided');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            // Load interview data
+            await loadInterview();
+
+            // Start timer
+            startTimer();
+
+            // Set up event listeners
+            setupEventListeners();
+
+            // Render initial state
+            render();
+        }
+
+        async function loadInterview() {
+            try {
+                const response = await fetch(`/interviews/${interviewId}`);
+                if (!response.ok) {
+                    throw new Error('Interview not found');
+                }
+                interview = await response.json();
+
+                // Update expert name in header
+                document.getElementById('expert-name').textContent = interview.expertName || interview.role || 'Expert';
+
+                // Build session questions from interview topics or use defaults
+                buildSessionQuestions();
+
+                // Load covered questions from localStorage
+                loadCoveredQuestions();
+            } catch (error) {
+                console.error('Error loading interview:', error);
+                alert('Failed to load interview');
+                window.location.href = 'dashboard.html';
+            }
+        }
+
+        function buildSessionQuestions() {
+            sessionQuestions = [];
+
+            // If interview has topics, convert them to questions
+            if (interview.topics && interview.topics.length > 0) {
+                interview.topics.forEach((topic, index) => {
+                    sessionQuestions.push({
+                        id: `topic-${index}`,
+                        phase: index === 0 ? 'warm-up' : index < interview.topics.length - 1 ? 'core-frameworks' : 'meta',
+                        text: `Let's discuss: ${topic.title}. ${topic.description || ''}`,
+                        followUps: [
+                            "Ask for specific examples",
+                            "Explore common pitfalls",
+                            "What would a successor need to know?"
+                        ]
+                    });
+                });
+            } else {
+                // Fall back to default questions based on current phase
+                const phase = interview.phase || 'warm-up';
+                const phaseOrder = ['warm-up', 'core-frameworks', 'cases', 'meta'];
+
+                phaseOrder.forEach(p => {
+                    const questions = DEFAULT_QUESTIONS[p] || [];
+                    questions.forEach((q, index) => {
+                        sessionQuestions.push({
+                            id: `${p}-${index}`,
+                            phase: p,
+                            text: q.text,
+                            followUps: q.followUps
+                        });
+                    });
+                });
+            }
+        }
+
+        function loadCoveredQuestions() {
+            const saved = localStorage.getItem(`interview-${interviewId}-covered`);
+            if (saved) {
+                try {
+                    coveredQuestions = new Set(JSON.parse(saved));
+                } catch (e) {
+                    coveredQuestions = new Set();
+                }
+            }
+        }
+
+        function saveCoveredQuestions() {
+            localStorage.setItem(`interview-${interviewId}-covered`, JSON.stringify([...coveredQuestions]));
+        }
+
+        function toggleQuestionCovered(questionId) {
+            if (coveredQuestions.has(questionId)) {
+                coveredQuestions.delete(questionId);
+            } else {
+                coveredQuestions.add(questionId);
+            }
+            saveCoveredQuestions();
+            renderQuestion();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('timer').textContent =
+                    `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function setupEventListeners() {
+            // Toolbar buttons
+            document.getElementById('btn-bold').addEventListener('click', () => formatText('bold'));
+            document.getElementById('btn-italic').addEventListener('click', () => formatText('italic'));
+            document.getElementById('btn-bullet').addEventListener('click', () => formatText('insertUnorderedList'));
+            document.getElementById('btn-number').addEventListener('click', () => formatText('insertOrderedList'));
+            document.getElementById('btn-insight').addEventListener('click', () => insertTag('insight'));
+            document.getElementById('btn-quote').addEventListener('click', () => insertTag('quote'));
+
+            // Notes editor - word count
+            const editor = document.getElementById('notes-editor');
+            editor.addEventListener('input', updateWordCount);
+
+            // Navigation buttons
+            document.getElementById('prev-question-btn').addEventListener('click', previousQuestion);
+            document.getElementById('next-question-btn').addEventListener('click', nextQuestion);
+            document.getElementById('bookmark-btn').addEventListener('click', bookmarkMoment);
+            document.getElementById('end-session-btn').addEventListener('click', endSession);
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    nextQuestion();
+                }
+            });
+
+            // Auto-save notes every 30 seconds
+            setInterval(autoSave, 30000);
+        }
+
+        function formatText(command) {
+            document.execCommand(command, false, null);
+            document.getElementById('notes-editor').focus();
+        }
+
+        function insertTag(type) {
+            const editor = document.getElementById('notes-editor');
+            const selection = window.getSelection();
+            const range = selection.getRangeAt(0);
+
+            const tag = document.createElement('span');
+            tag.className = type === 'insight' ? 'insight-tag' : 'quote-tag';
+            tag.textContent = `#${type}`;
+            tag.contentEditable = 'false';
+
+            range.insertNode(tag);
+            range.collapse(false);
+
+            // Add a space after
+            const space = document.createTextNode(' ');
+            range.insertNode(space);
+            range.setStartAfter(space);
+            range.setEndAfter(space);
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            editor.focus();
+            updateWordCount();
+        }
+
+        function updateWordCount() {
+            const editor = document.getElementById('notes-editor');
+            const text = editor.innerText || '';
+            const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+            document.getElementById('word-count').textContent = `${words} word${words !== 1 ? 's' : ''}`;
+        }
+
+        function renderPhaseTimeline() {
+            const timeline = document.getElementById('phase-timeline');
+            const currentPhase = interview?.phase || 'warm-up';
+            const currentPhaseIndex = PHASES.findIndex(p => p.id === currentPhase);
+
+            timeline.innerHTML = PHASES.map((phase, index) => {
+                let statusClass = '';
+                let statusIcon = '';
+
+                if (index < currentPhaseIndex) {
+                    // Completed
+                    statusClass = 'bg-green-100 text-green-600';
+                    statusIcon = '<span class="material-symbols-outlined text-[16px]">check</span>';
+                } else if (index === currentPhaseIndex) {
+                    // Active
+                    statusClass = 'bg-brand-500 text-white shadow-lg shadow-brand-500/30 ring-4 ring-brand-500/10';
+                    statusIcon = '<span class="material-symbols-outlined text-[14px]">play_arrow</span>';
+                } else {
+                    // Pending
+                    statusClass = 'bg-surface-100 border border-surface-300 text-surface-500';
+                    statusIcon = `<span class="text-[10px] font-bold">${index + 1}</span>`;
+                }
+
+                const isCompleted = index < currentPhaseIndex;
+                const isActive = index === currentPhaseIndex;
+                const opacity = isCompleted ? 'opacity-60 hover:opacity-100' : '';
+                const textClass = isCompleted ? 'line-through text-surface-500' : isActive ? 'text-brand-600' : 'text-surface-500';
+
+                return `
+                    <div class="relative flex gap-3 mb-6 ${opacity} transition-opacity cursor-pointer group">
+                        <div class="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${statusClass}">
+                            ${statusIcon}
+                        </div>
+                        <div class="flex flex-col pt-0.5">
+                            <p class="text-sm font-bold ${textClass}">${phase.name}</p>
+                            ${isActive ? `<span class="text-xs text-surface-500 mt-1">${phase.description}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderQuestion() {
+            if (!interview || sessionQuestions.length === 0) return;
+
+            const question = sessionQuestions[currentQuestionIndex] || {
+                id: 'default',
+                phase: 'warm-up',
+                text: "Continue the conversation with the expert...",
+                followUps: []
+            };
+
+            const isCovered = coveredQuestions.has(question.id);
+
+            // Update question badge with covered indicator
+            const badge = document.getElementById('question-badge');
+            badge.textContent = `Question ${currentQuestionIndex + 1}${isCovered ? ' ✓' : ''}`;
+            badge.className = isCovered
+                ? 'bg-green-500/10 text-green-600 text-xs font-bold px-2.5 py-1 rounded uppercase tracking-wide'
+                : 'bg-brand-500/10 text-brand-600 text-xs font-bold px-2.5 py-1 rounded uppercase tracking-wide';
+
+            // Update phase indicator
+            const phaseObj = PHASES.find(p => p.id === question.phase);
+            document.getElementById('question-phase').textContent = `• ${phaseObj?.name || question.phase}`;
+
+            // Update question text
+            document.getElementById('current-question').textContent = question.text;
+
+            // Update follow-ups
+            const followUpsContainer = document.getElementById('follow-ups');
+            followUpsContainer.innerHTML = (question.followUps || []).map(followUp => `
+                <div class="flex items-center gap-1.5 bg-surface-0 border border-brand-200 px-3 py-1.5 rounded-full text-sm text-surface-600 shadow-sm hover:border-brand-300 hover:bg-brand-50 transition-colors cursor-pointer">
+                    <span class="material-symbols-outlined text-[16px] text-brand-500">lightbulb</span>
+                    <span>${followUp}</span>
+                </div>
+            `).join('');
+
+            // Update Mark Covered checkbox
+            const checkbox = document.getElementById('mark-covered');
+            checkbox.checked = isCovered;
+            checkbox.onclick = () => toggleQuestionCovered(question.id);
+
+            // Update navigation buttons
+            document.getElementById('prev-question-btn').disabled = currentQuestionIndex === 0;
+            document.getElementById('next-question-btn').querySelector('span').textContent =
+                currentQuestionIndex >= sessionQuestions.length - 1 ? 'Complete' : 'Next Question';
+        }
+
+        function render() {
+            renderPhaseTimeline();
+            renderQuestion();
+            updateWordCount();
+        }
+
+        function previousQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                render();
+            }
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < sessionQuestions.length - 1) {
+                currentQuestionIndex++;
+                render();
+            } else {
+                // All questions completed - offer to end session
+                const coveredCount = coveredQuestions.size;
+                const totalCount = sessionQuestions.length;
+
+                if (confirm(`You've reached the end of all questions.\n\nCovered: ${coveredCount}/${totalCount} questions.\n\nWould you like to end the session?`)) {
+                    endSession();
+                }
+            }
+        }
+
+        function bookmarkMoment() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            const timestamp = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+            // In a full implementation, this would save a bookmark to the backend
+            console.log('Bookmark created at', timestamp);
+
+            // Show feedback
+            const btn = document.getElementById('bookmark-btn');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[20px] filled">bookmark</span><span class="font-semibold text-sm">Bookmarked!</span>';
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+            }, 2000);
+        }
+
+        async function autoSave() {
+            const notes = document.getElementById('notes-editor').innerHTML;
+
+            // In a full implementation, save notes to localStorage or backend
+            localStorage.setItem(`interview-${interviewId}-notes`, notes);
+
+            // Show saved indicator
+            const indicator = document.getElementById('autosave-indicator');
+            indicator.innerHTML = '<span class="text-xs text-green-600">Saved</span><span class="material-symbols-outlined text-green-500 text-[16px]">cloud_done</span>';
+
+            setTimeout(() => {
+                indicator.innerHTML = '<span class="text-xs text-surface-500">Auto-saved</span><span class="material-symbols-outlined text-green-500 text-[16px]">cloud_done</span>';
+            }, 2000);
+        }
+
+        async function endSession() {
+            if (!confirm('Are you sure you want to end this interview session? Your notes will be saved.')) {
+                return;
+            }
+
+            // Save final notes
+            await autoSave();
+
+            // Clear timer
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+
+            // In a full implementation, update interview status to completed
+            // For now, just redirect back to dashboard
+            window.location.href = 'dashboard.html';
+        }
+
+        // Load notes from localStorage if available
+        function loadSavedNotes() {
+            const savedNotes = localStorage.getItem(`interview-${interviewId}-notes`);
+            if (savedNotes) {
+                document.getElementById('notes-editor').innerHTML = savedNotes;
+                updateWordCount();
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
+            setTimeout(loadSavedNotes, 100);
+        });
+    </script>
+</body>
+</html>
