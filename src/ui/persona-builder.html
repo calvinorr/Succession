@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Succession | Persona Builder</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand': {
+                            50: '#eef4ff',
+                            100: '#d9e5ff',
+                            200: '#bcd2ff',
+                            300: '#8eb5ff',
+                            400: '#598eff',
+                            500: '#3366ff',
+                            600: '#1a44f5',
+                            700: '#1333e1',
+                            800: '#162bb6',
+                            900: '#182a8f',
+                        },
+                        'surface': {
+                            0: '#ffffff',
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    },
+                    fontFamily: {
+                        'display': ['"DM Serif Display"', 'serif'],
+                        'body': ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glow': '0 0 40px -10px rgba(51, 102, 255, 0.3)',
+                        'card': '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
+                        'card-hover': '0 4px 20px rgba(0,0,0,0.08), 0 0 0 1px rgba(51, 102, 255, 0.1)',
+                        'inner-glow': 'inset 0 1px 0 rgba(255,255,255,0.8)',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'slide-up': 'slideUp 0.5s ease-out forwards',
+                        'scale-in': 'scaleIn 0.3s ease-out forwards',
+                        'shimmer': 'shimmer 2s infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(16px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        scaleIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.95)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        },
+                        shimmer: {
+                            '0%': { backgroundPosition: '-200% 0' },
+                            '100%': { backgroundPosition: '200% 0' },
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        /* Subtle grain texture overlay */
+        .grain::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.02;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Staggered animation delays */
+        .stagger-1 { animation-delay: 0.05s; }
+        .stagger-2 { animation-delay: 0.1s; }
+        .stagger-3 { animation-delay: 0.15s; }
+        .stagger-4 { animation-delay: 0.2s; }
+        .stagger-5 { animation-delay: 0.25s; }
+        .stagger-6 { animation-delay: 0.3s; }
+
+        /* Range slider styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-track {
+            background: #e2e8f0;
+            height: 6px;
+            border-radius: 9999px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #3366ff;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 8px rgba(51, 102, 255, 0.3);
+            margin-top: -6px;
+        }
+
+        input[type="range"]::-moz-range-track {
+            background: #e2e8f0;
+            height: 6px;
+            border-radius: 9999px;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            background: #3366ff;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 8px rgba(51, 102, 255, 0.3);
+        }
+
+        /* Custom progress fill for expertise sliders */
+        .expertise-slider {
+            position: relative;
+        }
+
+        .expertise-progress {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 6px;
+            background: linear-gradient(90deg, #3366ff 0%, #598eff 100%);
+            border-radius: 9999px;
+            pointer-events: none;
+            transition: width 0.2s ease;
+        }
+    </style>
+</head>
+
+<body class="bg-surface-50 font-body text-surface-800 h-screen flex overflow-hidden grain">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-surface-0 border-r border-surface-200/80 flex flex-col h-full flex-shrink-0 relative z-10">
+        <div class="flex flex-col h-full p-5">
+
+            <!-- Logo -->
+            <div class="flex items-center gap-3 mb-10 px-1 opacity-0 animate-fade-in">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-glow">
+                    <span class="material-symbols-outlined text-white text-xl">hub</span>
+                </div>
+                <div>
+                    <h1 class="font-display text-xl text-surface-900 tracking-tight">Succession</h1>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-surface-400 font-medium">Expert Systems</p>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex flex-col gap-1 flex-1">
+                <a href="dashboard.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 group transition-all duration-200 opacity-0 animate-slide-up stagger-1">
+                    <span class="material-symbols-outlined text-[20px]">space_dashboard</span>
+                    <span class="text-sm font-medium">Dashboard</span>
+                </a>
+                <a href="index.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 group transition-all duration-200 opacity-0 animate-slide-up stagger-2">
+                    <span class="material-symbols-outlined text-[20px]">mic</span>
+                    <span class="text-sm font-medium">Interviews</span>
+                </a>
+                <a href="personas.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl bg-brand-50 text-brand-600 group transition-all duration-200 opacity-0 animate-slide-up stagger-3">
+                    <span class="material-symbols-outlined filled text-[20px]">person_search</span>
+                    <span class="text-sm font-semibold">Personas</span>
+                </a>
+                <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 group transition-all duration-200 opacity-0 animate-slide-up stagger-4">
+                    <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+                    <span class="text-sm font-medium">Synthesis</span>
+                </a>
+
+                <div class="flex-1"></div>
+
+                <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 group transition-all duration-200">
+                    <span class="material-symbols-outlined text-[20px]">settings</span>
+                    <span class="text-sm font-medium">Settings</span>
+                </a>
+            </nav>
+
+            <!-- User Profile -->
+            <div class="border-t border-surface-200/80 pt-5 mt-4">
+                <div class="flex items-center gap-3 px-1">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+                        CU
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-surface-800 truncate">Calvin User</p>
+                        <p class="text-xs text-surface-400 truncate">admin@succession.io</p>
+                    </div>
+                    <button class="p-1.5 rounded-lg hover:bg-surface-100 text-surface-400 hover:text-surface-600 transition-colors">
+                        <span class="material-symbols-outlined text-[18px]">more_vert</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex h-screen overflow-hidden">
+
+        <!-- Left Panel: Source Context (40% width) -->
+        <aside class="w-[40%] flex flex-col border-r border-surface-200/80 bg-surface-0 flex-shrink-0">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-surface-200/60">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-surface-900 text-lg font-bold leading-tight">Source Context</h3>
+                        <p id="interview-reference" class="text-brand-600 text-xs font-medium mt-1">Interview #-- • Loading...</p>
+                    </div>
+                    <button id="toggle-search-btn" class="p-2 rounded-lg text-surface-400 hover:text-brand-600 hover:bg-brand-50 transition-colors">
+                        <span class="material-symbols-outlined text-[20px]">search</span>
+                    </button>
+                </div>
+                <!-- Search Bar (hidden by default) -->
+                <div id="transcript-search" class="hidden mt-3">
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 text-[18px]">search</span>
+                        <input
+                            type="text"
+                            id="search-input"
+                            placeholder="Search transcript..."
+                            class="w-full pl-10 pr-10 py-2 bg-surface-50 border border-surface-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all"
+                        >
+                        <button id="clear-search-btn" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-surface-400 hover:text-surface-600 hidden">
+                            <span class="material-symbols-outlined text-[16px]">close</span>
+                        </button>
+                    </div>
+                    <p id="search-results-count" class="text-xs text-surface-500 mt-1 hidden">0 results found</p>
+                </div>
+            </div>
+
+            <!-- Transcript -->
+            <div id="transcript-container" class="flex-1 overflow-y-auto p-4 space-y-4">
+                <!-- Loading state -->
+                <div class="flex items-center justify-center py-12 text-surface-400">
+                    <span class="material-symbols-outlined text-4xl animate-pulse">hourglass_empty</span>
+                </div>
+            </div>
+
+            <!-- Auto-Synthesize Button -->
+            <div class="p-4 border-t border-surface-200/60 bg-surface-50">
+                <button id="auto-synthesize-btn" class="flex items-center justify-center w-full gap-2 rounded-xl py-3 text-sm font-semibold text-white bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0">
+                    <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+                    <span>Auto-Synthesize Insights</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Right Panel: Persona Form (60% width) -->
+        <section class="flex-1 flex flex-col h-full overflow-hidden bg-surface-50">
+            <!-- Breadcrumbs -->
+            <div class="px-8 py-4 bg-surface-0 border-b border-surface-200/60">
+                <div class="flex flex-wrap gap-2 items-center text-sm">
+                    <a href="dashboard.html" class="text-surface-500 hover:text-brand-600 transition-colors font-medium">Succession</a>
+                    <span class="text-surface-400 font-medium">/</span>
+                    <a href="personas.html" class="text-surface-500 hover:text-brand-600 transition-colors font-medium">Personas</a>
+                    <span class="text-surface-400 font-medium">/</span>
+                    <span class="text-surface-900 font-semibold">New Persona</span>
+                </div>
+            </div>
+
+            <!-- Page Heading -->
+            <div class="px-8 py-6 bg-surface-0 border-b border-surface-200/60 flex justify-between items-center">
+                <div>
+                    <h1 class="font-display text-3xl text-surface-900 tracking-tight">New Expert Persona</h1>
+                    <p class="text-surface-500 text-sm mt-1">Synthesize interview data into a reusable expert profile.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div id="draft-status" class="hidden items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg">
+                        <span class="material-symbols-outlined text-sm">check_circle</span>
+                        <span>Draft Saved</span>
+                    </div>
+                    <button id="save-draft-btn" class="flex items-center gap-2 h-10 px-5 bg-surface-0 border border-surface-300 hover:border-surface-400 text-surface-700 rounded-xl text-sm font-semibold transition-all duration-200">
+                        <span class="material-symbols-outlined text-[18px]">save</span>
+                        <span>Save Draft</span>
+                    </button>
+                    <button id="publish-persona-btn" class="flex items-center gap-2 h-10 px-5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white rounded-xl text-sm font-semibold shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0">
+                        <span class="material-symbols-outlined text-[18px]">publish</span>
+                        <span>Publish Persona</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scrollable Form Area -->
+            <div class="flex-1 overflow-y-auto px-8 py-6">
+                <div class="max-w-4xl w-full mx-auto space-y-6">
+
+                    <!-- Section 1: Core Identity -->
+                    <div class="bg-surface-0 rounded-2xl shadow-card border border-surface-200/60 p-6 opacity-0 animate-slide-up stagger-1">
+                        <div class="flex items-center gap-2 mb-6">
+                            <span class="material-symbols-outlined text-brand-500 text-2xl">id_card</span>
+                            <h3 class="text-lg font-bold text-surface-900">Core Identity</h3>
+                        </div>
+                        <div class="flex flex-col md:flex-row gap-8">
+                            <!-- Avatar Upload -->
+                            <div class="flex flex-col items-center gap-3">
+                                <div class="relative group cursor-pointer">
+                                    <div id="avatar-preview" class="w-28 h-28 rounded-full bg-gradient-to-br from-surface-200 to-surface-300 border-2 border-dashed border-surface-300 hover:border-brand-500 flex items-center justify-center overflow-hidden transition-all duration-200">
+                                        <span class="material-symbols-outlined text-4xl text-surface-400">person</span>
+                                        <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                                            <span class="material-symbols-outlined text-white text-3xl">upload</span>
+                                        </div>
+                                    </div>
+                                    <input type="file" id="photo-upload" accept="image/*" class="hidden">
+                                </div>
+                                <p class="text-xs text-center text-surface-500 font-medium">Upload Photo</p>
+                            </div>
+                            <!-- Inputs -->
+                            <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div class="col-span-1">
+                                    <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">Full Name</label>
+                                    <input id="full-name" type="text" placeholder="e.g. Dr. Jane Smith" class="w-full bg-surface-50 border border-surface-300 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all">
+                                </div>
+                                <div class="col-span-1">
+                                    <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">Years of Experience</label>
+                                    <input id="years-experience" type="number" min="0" placeholder="0" class="w-full bg-surface-50 border border-surface-300 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all">
+                                </div>
+                                <div class="col-span-1">
+                                    <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">Current Role</label>
+                                    <input id="current-role" type="text" placeholder="e.g. Finance Director" class="w-full bg-surface-50 border border-surface-300 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all">
+                                </div>
+                                <div class="col-span-1">
+                                    <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">Organization</label>
+                                    <input id="organization" type="text" placeholder="e.g. ABC Corporation" class="w-full bg-surface-50 border border-surface-300 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all">
+                                </div>
+                                <div class="col-span-full">
+                                    <label class="block text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">One-line Bio</label>
+                                    <textarea id="bio" rows="2" placeholder="Brief description of expertise and background..." class="w-full bg-surface-50 border border-surface-300 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all resize-none"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Behavioral Traits -->
+                    <div class="bg-surface-0 rounded-2xl shadow-card border border-surface-200/60 p-6 opacity-0 animate-slide-up stagger-2">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-brand-500 text-2xl">psychology</span>
+                                <h3 class="text-lg font-bold text-surface-900">Behavioral Traits</h3>
+                            </div>
+                            <button id="suggest-traits-btn" class="flex items-center gap-1.5 text-xs font-bold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-2 rounded-xl transition-all duration-200">
+                                <span class="material-symbols-outlined text-[16px]">auto_awesome</span>
+                                <span>Suggest Traits</span>
+                            </button>
+                        </div>
+                        <div id="traits-container" class="flex flex-wrap gap-2 mb-4">
+                            <!-- Trait pills will be added here dynamically -->
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input id="trait-input" type="text" placeholder="+ Add trait" class="flex-1 bg-transparent border-b border-surface-300 focus:border-brand-500 px-2 py-2 text-sm outline-none transition-all">
+                        </div>
+                        <p class="text-xs text-surface-400 mt-2">Press Enter to add a new trait.</p>
+                    </div>
+
+                    <!-- Section 3: Domain Expertise -->
+                    <div class="bg-surface-0 rounded-2xl shadow-card border border-surface-200/60 p-6 opacity-0 animate-slide-up stagger-3">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-brand-500 text-2xl">hub</span>
+                                <h3 class="text-lg font-bold text-surface-900">Domain Expertise</h3>
+                            </div>
+                            <button id="add-domain-btn" class="flex items-center gap-1 text-sm text-surface-500 hover:text-brand-600 font-semibold transition-colors">
+                                <span class="material-symbols-outlined text-[18px]">add_circle</span>
+                                <span>Add Domain</span>
+                            </button>
+                        </div>
+                        <div id="expertise-container" class="space-y-6">
+                            <!-- Expertise items will be added here dynamically -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // Global state
+        let interviewId = null;
+        let personaId = null;
+        let interview = null;
+        let traits = [];
+        let expertiseAreas = [];
+
+        // Proficiency levels mapping
+        const proficiencyLevels = {
+            0: { label: 'None', color: 'text-surface-400' },
+            20: { label: 'Beginner', color: 'text-amber-600' },
+            40: { label: 'Intermediate', color: 'text-blue-600' },
+            60: { label: 'Advanced', color: 'text-violet-600' },
+            80: { label: 'Expert', color: 'text-brand-600' },
+            100: { label: 'Master', color: 'text-emerald-600' }
+        };
+
+        function getProficiencyLevel(value) {
+            if (value >= 80) return proficiencyLevels[100];
+            if (value >= 60) return proficiencyLevels[80];
+            if (value >= 40) return proficiencyLevels[60];
+            if (value >= 20) return proficiencyLevels[40];
+            if (value > 0) return proficiencyLevels[20];
+            return proficiencyLevels[0];
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get interview ID from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            interviewId = urlParams.get('interviewId');
+
+            if (!interviewId) {
+                alert('No interview ID provided. Redirecting to dashboard.');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            // Load interview data
+            loadInterview();
+
+            // Set up event listeners
+            setupEventListeners();
+        });
+
+        async function loadInterview() {
+            try {
+                const response = await fetch(`/interviews/${interviewId}`);
+                if (!response.ok) {
+                    throw new Error('Interview not found');
+                }
+
+                interview = await response.json();
+
+                // Update UI with interview info
+                updateInterviewReference();
+                renderTranscript();
+
+                // Pre-fill role if available
+                if (interview.role) {
+                    document.getElementById('current-role').value = interview.role;
+                }
+            } catch (error) {
+                console.error('Error loading interview:', error);
+                alert('Failed to load interview. Redirecting to dashboard.');
+                window.location.href = 'dashboard.html';
+            }
+        }
+
+        function updateInterviewReference() {
+            const date = new Date(interview.createdAt);
+            const formattedDate = date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+
+            document.getElementById('interview-reference').textContent =
+                `Interview #${interview.id.substring(0, 6)} • ${formattedDate}`;
+        }
+
+        function renderTranscript() {
+            const container = document.getElementById('transcript-container');
+
+            if (!interview.messages || interview.messages.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-12 text-surface-400">
+                        <span class="material-symbols-outlined text-4xl mb-2">inbox</span>
+                        <p class="text-sm">No messages in this interview yet</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = interview.messages.map(msg => {
+                const isExpert = msg.role === 'user';
+                const timestamp = new Date(msg.timestamp).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit'
+                });
+
+                if (isExpert) {
+                    return `
+                        <div class="flex gap-3">
+                            <div class="flex flex-col gap-1 w-full">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-brand-600 text-sm font-bold">Expert</span>
+                                    <span class="text-surface-400 text-xs">${timestamp}</span>
+                                </div>
+                                <div class="bg-brand-50/50 border border-brand-100 p-3 rounded-lg rounded-tl-none">
+                                    <p class="text-surface-800 text-sm leading-relaxed">${msg.content}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="flex gap-3">
+                            <div class="flex flex-col gap-1 w-full">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-surface-900 text-sm font-bold">Interviewer</span>
+                                    <span class="text-surface-400 text-xs">${timestamp}</span>
+                                </div>
+                                <div class="bg-surface-100 border border-surface-200 p-3 rounded-lg rounded-tl-none">
+                                    <p class="text-surface-700 text-sm leading-relaxed">${msg.content}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }).join('');
+
+            // Scroll to bottom
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function setupEventListeners() {
+            // Auto-synthesize button
+            document.getElementById('auto-synthesize-btn').addEventListener('click', autoSynthesize);
+
+            // Trait input
+            const traitInput = document.getElementById('trait-input');
+            traitInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && traitInput.value.trim()) {
+                    addTrait(traitInput.value.trim());
+                    traitInput.value = '';
+                }
+            });
+
+            // Suggest traits button
+            document.getElementById('suggest-traits-btn').addEventListener('click', suggestTraits);
+
+            // Add domain button
+            document.getElementById('add-domain-btn').addEventListener('click', () => {
+                addExpertiseArea('', 0);
+            });
+
+            // Photo upload
+            const photoUpload = document.getElementById('photo-upload');
+            const avatarPreview = document.getElementById('avatar-preview');
+            avatarPreview.addEventListener('click', () => photoUpload.click());
+            photoUpload.addEventListener('change', handlePhotoUpload);
+
+            // Save draft button
+            document.getElementById('save-draft-btn').addEventListener('click', saveDraft);
+
+            // Publish persona button
+            document.getElementById('publish-persona-btn').addEventListener('click', publishPersona);
+
+            // Transcript search
+            document.getElementById('toggle-search-btn').addEventListener('click', toggleSearch);
+            document.getElementById('search-input').addEventListener('input', handleSearch);
+            document.getElementById('clear-search-btn').addEventListener('click', clearSearch);
+        }
+
+        function toggleSearch() {
+            const searchContainer = document.getElementById('transcript-search');
+            const isHidden = searchContainer.classList.contains('hidden');
+
+            if (isHidden) {
+                searchContainer.classList.remove('hidden');
+                document.getElementById('search-input').focus();
+            } else {
+                searchContainer.classList.add('hidden');
+                clearSearch();
+            }
+        }
+
+        function handleSearch() {
+            const searchTerm = document.getElementById('search-input').value.trim().toLowerCase();
+            const clearBtn = document.getElementById('clear-search-btn');
+            const resultsCount = document.getElementById('search-results-count');
+
+            if (searchTerm.length === 0) {
+                clearBtn.classList.add('hidden');
+                resultsCount.classList.add('hidden');
+                renderTranscript();
+                return;
+            }
+
+            clearBtn.classList.remove('hidden');
+            resultsCount.classList.remove('hidden');
+
+            // Highlight matching text in transcript
+            const container = document.getElementById('transcript-container');
+            const messages = interview?.messages || [];
+            let matchCount = 0;
+
+            container.innerHTML = messages.map(msg => {
+                const isExpert = msg.role === 'user';
+                const timestamp = new Date(msg.timestamp).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit'
+                });
+
+                // Check if content matches search term
+                const contentLower = msg.content.toLowerCase();
+                const hasMatch = contentLower.includes(searchTerm);
+
+                if (hasMatch) {
+                    matchCount++;
+                }
+
+                // Highlight matching text
+                let displayContent = msg.content;
+                if (hasMatch) {
+                    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                    displayContent = msg.content.replace(regex, '<mark class="bg-yellow-200 text-yellow-900 px-0.5 rounded">$1</mark>');
+                }
+
+                const bgClass = hasMatch
+                    ? (isExpert ? 'bg-yellow-50 border-yellow-200' : 'bg-yellow-50 border-yellow-200')
+                    : (isExpert ? 'bg-brand-50/50 border-brand-100' : 'bg-surface-100 border-surface-200');
+
+                if (isExpert) {
+                    return `
+                        <div class="flex gap-3 ${hasMatch ? 'ring-2 ring-yellow-300 rounded-lg' : ''}">
+                            <div class="flex flex-col gap-1 w-full">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-brand-600 text-sm font-bold">Expert</span>
+                                    <span class="text-surface-400 text-xs">${timestamp}</span>
+                                </div>
+                                <div class="${bgClass} border p-3 rounded-lg rounded-tl-none">
+                                    <p class="text-surface-800 text-sm leading-relaxed">${displayContent}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="flex gap-3 ${hasMatch ? 'ring-2 ring-yellow-300 rounded-lg' : ''}">
+                            <div class="flex flex-col gap-1 w-full">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-surface-900 text-sm font-bold">Interviewer</span>
+                                    <span class="text-surface-400 text-xs">${timestamp}</span>
+                                </div>
+                                <div class="${bgClass} border p-3 rounded-lg rounded-tl-none">
+                                    <p class="text-surface-700 text-sm leading-relaxed">${displayContent}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }).join('');
+
+            resultsCount.textContent = `${matchCount} result${matchCount !== 1 ? 's' : ''} found`;
+        }
+
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('clear-search-btn').classList.add('hidden');
+            document.getElementById('search-results-count').classList.add('hidden');
+            renderTranscript();
+        }
+
+        async function autoSynthesize() {
+            const btn = document.getElementById('auto-synthesize-btn');
+            btn.disabled = true;
+            btn.innerHTML = `
+                <span class="material-symbols-outlined text-[20px] animate-spin">progress_activity</span>
+                <span>Synthesizing...</span>
+            `;
+
+            try {
+                // First, build the persona from interview
+                const response = await fetch('/personas/build', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ interviewId })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to build persona');
+                }
+
+                const persona = await response.json();
+                personaId = persona.id;
+
+                // Show success message
+                showDraftSaved();
+
+                alert('Persona synthesized successfully! AI-generated insights have been applied.');
+
+                // You could extract data from persona.promptText here and populate fields
+                // For now, we'll just store the personaId for publishing later
+
+            } catch (error) {
+                console.error('Error synthesizing:', error);
+                alert('Failed to synthesize insights. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+                    <span>Auto-Synthesize Insights</span>
+                `;
+            }
+        }
+
+        function addTrait(traitText) {
+            if (!traits.includes(traitText)) {
+                traits.push(traitText);
+                renderTraits();
+            }
+        }
+
+        function removeTrait(traitText) {
+            traits = traits.filter(t => t !== traitText);
+            renderTraits();
+        }
+
+        function renderTraits() {
+            const container = document.getElementById('traits-container');
+            container.innerHTML = traits.map(trait => `
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-50 border border-brand-100 text-brand-600 text-sm font-semibold">
+                    <span>${trait}</span>
+                    <button onclick="removeTrait('${trait.replace(/'/g, "\\'")}')" class="hover:bg-brand-200 rounded-full p-0.5 transition-colors">
+                        <span class="material-symbols-outlined text-[16px]">close</span>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function suggestTraits() {
+            const btn = document.getElementById('suggest-traits-btn');
+            btn.disabled = true;
+            btn.innerHTML = `
+                <span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                <span>Suggesting...</span>
+            `;
+
+            try {
+                // For demo purposes, add some default traits
+                // In production, this would call an AI endpoint
+                const suggestedTraits = ['Analytical', 'Risk-Averse', 'Detail-Oriented', 'Strategic'];
+                suggestedTraits.forEach(trait => {
+                    if (!traits.includes(trait)) {
+                        addTrait(trait);
+                    }
+                });
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <span class="material-symbols-outlined text-[16px]">auto_awesome</span>
+                    <span>Suggest Traits</span>
+                `;
+            }
+        }
+
+        function addExpertiseArea(domain = '', proficiency = 0) {
+            const id = Date.now();
+            expertiseAreas.push({ id, domain, proficiency });
+            renderExpertise();
+        }
+
+        function removeExpertiseArea(id) {
+            expertiseAreas = expertiseAreas.filter(e => e.id !== id);
+            renderExpertise();
+        }
+
+        function updateExpertiseArea(id, field, value) {
+            const area = expertiseAreas.find(e => e.id === id);
+            if (area) {
+                area[field] = value;
+                renderExpertise();
+            }
+        }
+
+        function renderExpertise() {
+            const container = document.getElementById('expertise-container');
+
+            if (expertiseAreas.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 text-surface-400">
+                        <span class="material-symbols-outlined text-3xl mb-2 block">hub</span>
+                        <p class="text-sm">No expertise areas added yet</p>
+                        <button onclick="addExpertiseArea()" class="mt-3 text-brand-600 hover:text-brand-700 font-semibold text-sm">
+                            + Add your first domain
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = expertiseAreas.map(area => {
+                const level = getProficiencyLevel(area.proficiency);
+                return `
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div class="sm:w-1/3 flex items-center gap-2">
+                            <button onclick="removeExpertiseArea(${area.id})" class="text-surface-400 hover:text-red-500 transition-colors">
+                                <span class="material-symbols-outlined text-[18px]">delete</span>
+                            </button>
+                            <input
+                                type="text"
+                                value="${area.domain}"
+                                placeholder="e.g. Financial Planning"
+                                onchange="updateExpertiseArea(${area.id}, 'domain', this.value)"
+                                class="w-full bg-transparent border-b border-surface-300 focus:border-brand-500 text-sm font-bold text-surface-800 p-0 pb-1 outline-none transition-all"
+                            />
+                        </div>
+                        <div class="flex-1 flex items-center gap-4">
+                            <div class="flex-1 relative h-2 bg-surface-200 rounded-full expertise-slider">
+                                <div class="expertise-progress" style="width: ${area.proficiency}%"></div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    step="20"
+                                    value="${area.proficiency}"
+                                    onchange="updateExpertiseArea(${area.id}, 'proficiency', parseInt(this.value))"
+                                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                />
+                            </div>
+                            <span class="text-xs font-bold ${level.color} min-w-[80px] text-right">${level.label}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function handlePhotoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const avatarPreview = document.getElementById('avatar-preview');
+                avatarPreview.innerHTML = `
+                    <img src="${e.target.result}" alt="Avatar" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                        <span class="material-symbols-outlined text-white text-3xl">upload</span>
+                    </div>
+                `;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function saveDraft() {
+            const personaData = collectFormData();
+            personaData.status = 'draft';
+
+            try {
+                // If we have a personaId from auto-synthesize, update it
+                // Otherwise, create a new persona
+                if (personaId) {
+                    // In a real app, you'd have a PUT endpoint to update
+                    // For now, we'll just show the saved status
+                    showDraftSaved();
+                } else {
+                    // Create new persona with draft status
+                    const response = await fetch('/personas/build', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ interviewId })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to save draft');
+                    }
+
+                    const persona = await response.json();
+                    personaId = persona.id;
+                    showDraftSaved();
+                }
+
+                console.log('Draft saved:', personaData);
+            } catch (error) {
+                console.error('Error saving draft:', error);
+                alert('Failed to save draft. Please try again.');
+            }
+        }
+
+        async function publishPersona() {
+            const personaData = collectFormData();
+
+            // Validate required fields
+            if (!personaData.name || !personaData.role) {
+                alert('Please fill in at least Full Name and Current Role before publishing.');
+                return;
+            }
+
+            const btn = document.getElementById('publish-persona-btn');
+            btn.disabled = true;
+            btn.innerHTML = `
+                <span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                <span>Publishing...</span>
+            `;
+
+            try {
+                // First build the persona if not already done
+                if (!personaId) {
+                    const response = await fetch('/personas/build', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ interviewId })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to build persona');
+                    }
+
+                    const persona = await response.json();
+                    personaId = persona.id;
+                }
+
+                // In a real app, you would have a PUT /personas/:id endpoint
+                // to update the persona with the form data
+                console.log('Publishing persona:', personaData);
+
+                alert('Persona published successfully!');
+                window.location.href = 'personas.html';
+
+            } catch (error) {
+                console.error('Error publishing persona:', error);
+                alert('Failed to publish persona. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <span class="material-symbols-outlined text-[18px]">publish</span>
+                    <span>Publish Persona</span>
+                `;
+            }
+        }
+
+        function collectFormData() {
+            return {
+                name: document.getElementById('full-name').value,
+                role: document.getElementById('current-role').value,
+                organization: document.getElementById('organization').value,
+                yearsOfExperience: parseInt(document.getElementById('years-experience').value) || 0,
+                bio: document.getElementById('bio').value,
+                traits: traits,
+                expertise: expertiseAreas,
+                interviewId: interviewId
+            };
+        }
+
+        function showDraftSaved() {
+            const status = document.getElementById('draft-status');
+            status.classList.remove('hidden');
+            status.classList.add('flex');
+
+            // Hide after 3 seconds
+            setTimeout(() => {
+                status.classList.add('hidden');
+                status.classList.remove('flex');
+            }, 3000);
+        }
+
+        // Initialize with one empty expertise area
+        addExpertiseArea();
+    </script>
+
+</body>
+</html>
