@@ -383,6 +383,8 @@ app.get('/personas', (req, res) => {
           bio: persona.bio || persona.promptText?.substring(0, 150) + '...',
           photoUrl: persona.photoUrl || null,
           status: persona.status || 'Draft',
+          validatedBy: persona.validatedBy || null,
+          validatedAt: persona.validatedAt || null,
           traits: persona.traits || [],
           expertise: normalizeExpertise(persona.expertise),
           industry: persona.industry || 'Finance & Banking',
@@ -1002,11 +1004,13 @@ app.get('/personas/:id', (req, res) => {
       });
     }
 
-    // Return the persona object with version defaulted if missing
+    // Return the persona object with version and validation fields
     res.json({
       ...persona,
       version: persona.version || 1,
       status: persona.status || 'Draft',
+      validatedBy: persona.validatedBy || null,
+      validatedAt: persona.validatedAt || null,
     });
   } catch (error) {
     console.error('Error retrieving persona:', error);
@@ -1157,10 +1161,90 @@ app.post('/personas/:id/advise', async (req, res) => {
   }
 });
 
-// POST /personas/{id}/feedback
+// POST /personas/{id}/feedback - Expert review and validation
 app.post('/personas/:id/feedback', (req, res) => {
-  // TODO: Implement feedback logic
-  res.send(`Feedback received for persona ${req.params.id}`);
+  try {
+    const { id } = req.params;
+    const { validatedBy, feedback } = req.body;
+
+    // Validate request
+    if (!validatedBy || typeof validatedBy !== 'string') {
+      return res.status(400).json({
+        error: 'Invalid request. validatedBy is required and must be a string (email or identifier).',
+      });
+    }
+
+    // Load persona
+    const persona = dal.readData(`personas/${id}`);
+    if (!persona) {
+      return res.status(404).json({
+        error: `Persona not found: ${id}`,
+      });
+    }
+
+    // Check current status is Draft (validation only works from Draft)
+    const currentStatus = persona.status || 'Draft';
+    if (currentStatus !== 'Draft' && currentStatus !== 'draft') {
+      return res.status(400).json({
+        error: `Cannot validate persona. Current status is "${currentStatus}". Only Draft personas can be validated.`,
+      });
+    }
+
+    // Get the original expert from the interview (for audit trail)
+    let originalExpert = null;
+    if (persona.interviewId) {
+      const interview = dal.readData(`interviews/${persona.interviewId}`);
+      if (interview && interview.expertId) {
+        originalExpert = dal.readData(`experts/${interview.expertId}`);
+      }
+    }
+
+    // Store feedback if provided
+    if (feedback) {
+      if (!persona.feedbackHistory) {
+        persona.feedbackHistory = [];
+      }
+      persona.feedbackHistory.push({
+        feedback,
+        submittedBy: validatedBy,
+        submittedAt: new Date().toISOString(),
+      });
+    }
+
+    // Update persona status to Validated
+    persona.status = 'Validated';
+    persona.validatedBy = validatedBy;
+    persona.validatedAt = new Date().toISOString();
+    persona.updatedAt = persona.validatedAt;
+
+    // Ensure version is set
+    if (!persona.version) {
+      persona.version = 1;
+    }
+
+    // Save updated persona
+    dal.writeData(`personas/${id}`, persona);
+
+    // Auto-deprecate other validated personas for this role
+    if (persona.role) {
+      deprecateOldVersions(persona.role, id);
+    }
+
+    // Return response matching spec
+    res.json({
+      status: persona.status,
+      validatedAt: persona.validatedAt,
+      validatedBy: persona.validatedBy,
+      ...(originalExpert && { originalExpert: originalExpert.name }),
+      ...(feedback && { feedbackRecorded: true }),
+    });
+  } catch (error) {
+    console.error('Error processing persona feedback:', error);
+    res.status(500).json({
+      error: 'Internal server error processing feedback',
+      details: error.message,
+    });
+  }
 });
 
 // ============================================
