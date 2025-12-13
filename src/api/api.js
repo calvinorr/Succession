@@ -1117,7 +1117,7 @@ app.post('/personas/:id/view', (req, res) => {
 app.post('/personas/:id/advise', async (req, res) => {
   try {
     const { id } = req.params;
-    const { question } = req.body;
+    const { question, userId } = req.body;
 
     // Validate request body
     if (!question || typeof question !== 'string') {
@@ -1145,6 +1145,24 @@ app.post('/personas/:id/advise', async (req, res) => {
       },
     ];
     const response = await llm.chat(systemPrompt, llmMessages);
+
+    // Log the interaction (non-failing - don't block response if logging fails)
+    try {
+      const logId = Math.random().toString(36).substring(2, 15);
+      const advisorLog = {
+        logId,
+        personaId: persona.id,
+        personaVersion: persona.version || 1,
+        userId: userId || null,
+        question,
+        response,
+        createdAt: new Date().toISOString(),
+      };
+      dal.writeData(`advisor-logs/${logId}`, advisorLog);
+    } catch (logError) {
+      console.error('Failed to log advisor interaction:', logError.message);
+      // Continue - logging failure should not block the response
+    }
 
     // Return response
     res.json({
@@ -2059,6 +2077,724 @@ app.delete('/knowledge-entries/:id', (req, res) => {
     console.error('Error deleting knowledge entry:', error);
     res.status(500).json({
       error: 'Internal server error deleting knowledge entry',
+      details: error.message,
+    });
+  }
+});
+
+// ============================================
+// QA SCENARIO ENDPOINTS (Story 5.1)
+// ============================================
+
+// Map role names to directory slugs
+const ROLE_TO_SLUG = {
+  'Finance Director': 'finance-director',
+  'Head of AP': 'head-of-ap',
+  'Head of AR': 'head-of-ar',
+  'Head of Treasury': 'head-of-treasury',
+};
+
+// GET /qa/scenarios/:role - Get test scenarios for a role
+app.get('/qa/scenarios/:role', (req, res) => {
+  try {
+    const { role } = req.params;
+
+    // Decode URL-encoded role (e.g., "Finance%20Director" -> "Finance Director")
+    const decodedRole = decodeURIComponent(role);
+
+    // Get directory slug for role
+    const slug = ROLE_TO_SLUG[decodedRole];
+    if (!slug) {
+      return res.status(400).json({
+        error: `Invalid role. Must be one of: ${Object.keys(ROLE_TO_SLUG).join(', ')}`,
+      });
+    }
+
+    // List scenarios in the role directory
+    const scenariosDir = path.join('./data', 'scenarios', slug);
+    if (!fs.existsSync(scenariosDir)) {
+      return res.json([]);
+    }
+
+    const files = fs.readdirSync(scenariosDir);
+    const scenarios = [];
+
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        const scenarioId = file.replace('.json', '');
+        const scenario = dal.readData(`scenarios/${slug}/${scenarioId}`);
+        if (scenario) {
+          scenarios.push(scenario);
+        }
+      }
+    }
+
+    res.json(scenarios);
+  } catch (error) {
+    console.error('Error listing scenarios:', error);
+    res.status(500).json({
+      error: 'Internal server error listing scenarios',
+      details: error.message,
+    });
+  }
+});
+
+// POST /qa/run - Run a scenario against a persona
+app.post('/qa/run', async (req, res) => {
+  try {
+    const { personaId, scenarioId } = req.body;
+
+    // Validate request
+    if (!personaId || typeof personaId !== 'string') {
+      return res.status(400).json({
+        error: 'Invalid request. personaId is required and must be a string.',
+      });
+    }
+    if (!scenarioId || typeof scenarioId !== 'string') {
+      return res.status(400).json({
+        error: 'Invalid request. scenarioId is required and must be a string.',
+      });
+    }
+
+    // Load persona
+    const persona = dal.readData(`personas/${personaId}`);
+    if (!persona) {
+      return res.status(404).json({
+        error: `Persona not found: ${personaId}`,
+      });
+    }
+
+    // Find scenario by ID (search all role directories)
+    let scenario = null;
+    for (const slug of Object.values(ROLE_TO_SLUG)) {
+      const candidate = dal.readData(`scenarios/${slug}/${scenarioId}`);
+      if (candidate) {
+        scenario = candidate;
+        break;
+      }
+    }
+
+    if (!scenario) {
+      return res.status(404).json({
+        error: `Scenario not found: ${scenarioId}`,
+      });
+    }
+
+    // Build the question with context
+    const fullQuestion = `Context: ${scenario.context}\n\nQuestion: ${scenario.question}`;
+
+    // Use persona's promptText as system prompt and call LLM
+    const systemPrompt = persona.promptText;
+    const llmMessages = [{ role: 'user', content: fullQuestion }];
+    const response = await llm.chat(systemPrompt, llmMessages);
+
+    // Create evaluation record (pending scoring)
+    const evaluationId = Math.random().toString(36).substring(2, 15);
+    const evaluation = {
+      id: evaluationId,
+      personaId,
+      personaRole: persona.role,
+      personaVersion: persona.version || 1,
+      scenarioId,
+      scenarioTitle: scenario.title,
+      question: fullQuestion,
+      response,
+      status: 'pending', // pending, scored
+      scores: null,
+      comments: null,
+      evaluatedBy: null,
+      evaluatedAt: null,
+      createdAt: new Date().toISOString(),
+    };
+
+    dal.writeData(`evaluations/${evaluationId}`, evaluation);
+
+    res.json({
+      evaluationId,
+      personaId,
+      scenarioId,
+      response,
+    });
+  } catch (error) {
+    console.error('Error running scenario:', error);
+    res.status(500).json({
+      error: 'Internal server error running scenario',
+      details: error.message,
+    });
+  }
+});
+
+// POST /qa/evaluate - Submit evaluation scores
+app.post('/qa/evaluate', (req, res) => {
+  try {
+    const { evaluationId, accuracy, tone, actionability, riskAwareness, comments } = req.body;
+
+    // Validate request
+    if (!evaluationId || typeof evaluationId !== 'string') {
+      return res.status(400).json({
+        error: 'Invalid request. evaluationId is required and must be a string.',
+      });
+    }
+
+    // Validate scores (1-5)
+    const scores = { accuracy, tone, actionability, riskAwareness };
+    for (const [key, value] of Object.entries(scores)) {
+      if (value === undefined || value === null) {
+        return res.status(400).json({
+          error: `Invalid request. ${key} is required.`,
+        });
+      }
+      if (!Number.isInteger(value) || value < 1 || value > 5) {
+        return res.status(400).json({
+          error: `Invalid ${key}. Must be an integer between 1 and 5.`,
+        });
+      }
+    }
+
+    // Load evaluation
+    const evaluation = dal.readData(`evaluations/${evaluationId}`);
+    if (!evaluation) {
+      return res.status(404).json({
+        error: `Evaluation not found: ${evaluationId}`,
+      });
+    }
+
+    // Update evaluation with scores
+    evaluation.scores = {
+      accuracy,
+      tone,
+      actionability,
+      riskAwareness,
+      average: (accuracy + tone + actionability + riskAwareness) / 4,
+    };
+    evaluation.comments = comments || null;
+    evaluation.status = 'scored';
+    evaluation.evaluatedAt = new Date().toISOString();
+
+    dal.writeData(`evaluations/${evaluationId}`, evaluation);
+
+    res.json({
+      evaluationId,
+      scores: evaluation.scores,
+      status: evaluation.status,
+      evaluatedAt: evaluation.evaluatedAt,
+    });
+  } catch (error) {
+    console.error('Error submitting evaluation:', error);
+    res.status(500).json({
+      error: 'Internal server error submitting evaluation',
+      details: error.message,
+    });
+  }
+});
+
+// GET /qa/evaluations - List all evaluations
+app.get('/qa/evaluations', (req, res) => {
+  try {
+    const { personaId, scenarioId, status } = req.query;
+    const evaluationIds = listDataDir('evaluations');
+    let evaluations = [];
+
+    for (const id of evaluationIds) {
+      const evaluation = dal.readData(`evaluations/${id}`);
+      if (evaluation) {
+        evaluations.push(evaluation);
+      }
+    }
+
+    // Apply filters
+    if (personaId) {
+      evaluations = evaluations.filter(e => e.personaId === personaId);
+    }
+    if (scenarioId) {
+      evaluations = evaluations.filter(e => e.scenarioId === scenarioId);
+    }
+    if (status) {
+      evaluations = evaluations.filter(e => e.status === status);
+    }
+
+    // Sort by createdAt (newest first)
+    evaluations.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json(evaluations);
+  } catch (error) {
+    console.error('Error listing evaluations:', error);
+    res.status(500).json({
+      error: 'Internal server error listing evaluations',
+      details: error.message,
+    });
+  }
+});
+
+// GET /qa/evaluations/:id - Get a single evaluation
+app.get('/qa/evaluations/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const evaluation = dal.readData(`evaluations/${id}`);
+
+    if (!evaluation) {
+      return res.status(404).json({
+        error: `Evaluation not found: ${id}`,
+      });
+    }
+
+    res.json(evaluation);
+  } catch (error) {
+    console.error('Error getting evaluation:', error);
+    res.status(500).json({
+      error: 'Internal server error getting evaluation',
+      details: error.message,
+    });
+  }
+});
+
+// ============================================
+// QA ANALYTICS ENDPOINTS (Story 5.2)
+// ============================================
+
+const LOW_SCORE_THRESHOLD = 3.5;
+
+// Helper to load all evaluations
+function getAllEvaluations() {
+  const evaluationIds = listDataDir('evaluations');
+  const evaluations = [];
+  for (const id of evaluationIds) {
+    const evaluation = dal.readData(`evaluations/${id}`);
+    if (evaluation && evaluation.status === 'scored') {
+      evaluations.push(evaluation);
+    }
+  }
+  return evaluations;
+}
+
+// Helper to calculate average scores from evaluations
+function calculateAverageScores(evaluations) {
+  if (evaluations.length === 0) {
+    return { accuracy: 0, tone: 0, actionability: 0, riskAwareness: 0, overall: 0 };
+  }
+
+  const totals = { accuracy: 0, tone: 0, actionability: 0, riskAwareness: 0 };
+  for (const evaluation of evaluations) {
+    if (evaluation.scores) {
+      totals.accuracy += evaluation.scores.accuracy || 0;
+      totals.tone += evaluation.scores.tone || 0;
+      totals.actionability += evaluation.scores.actionability || 0;
+      totals.riskAwareness += evaluation.scores.riskAwareness || 0;
+    }
+  }
+
+  const count = evaluations.length;
+  const averages = {
+    accuracy: Math.round((totals.accuracy / count) * 100) / 100,
+    tone: Math.round((totals.tone / count) * 100) / 100,
+    actionability: Math.round((totals.actionability / count) * 100) / 100,
+    riskAwareness: Math.round((totals.riskAwareness / count) * 100) / 100,
+  };
+  averages.overall = Math.round(((averages.accuracy + averages.tone + averages.actionability + averages.riskAwareness) / 4) * 100) / 100;
+
+  return averages;
+}
+
+// GET /qa/analytics/personas/:id - Aggregated analytics for a persona
+app.get('/qa/analytics/personas/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Load persona
+    const persona = dal.readData(`personas/${id}`);
+    if (!persona) {
+      return res.status(404).json({
+        error: `Persona not found: ${id}`,
+      });
+    }
+
+    // Get all evaluations for this persona
+    const allEvaluations = getAllEvaluations();
+    const personaEvaluations = allEvaluations.filter(e => e.personaId === id);
+
+    // Calculate average scores
+    const averageScores = calculateAverageScores(personaEvaluations);
+
+    // Group evaluations by scenario
+    const scenarioMap = {};
+    for (const evaluation of personaEvaluations) {
+      const scenarioId = evaluation.scenarioId;
+      if (!scenarioMap[scenarioId]) {
+        scenarioMap[scenarioId] = {
+          scenarioId,
+          scenarioTitle: evaluation.scenarioTitle,
+          evaluations: [],
+        };
+      }
+      scenarioMap[scenarioId].evaluations.push({
+        evaluationId: evaluation.id,
+        scores: evaluation.scores,
+        comments: evaluation.comments,
+        evaluatedAt: evaluation.evaluatedAt,
+      });
+    }
+
+    // Calculate per-scenario averages
+    const scenarioEvaluations = Object.values(scenarioMap).map(scenario => {
+      const avgScores = calculateAverageScores(scenario.evaluations.map(e => ({ scores: e.scores })));
+      return {
+        scenarioId: scenario.scenarioId,
+        scenarioTitle: scenario.scenarioTitle,
+        evaluationCount: scenario.evaluations.length,
+        averageScores: avgScores,
+        needsAttention: avgScores.overall < LOW_SCORE_THRESHOLD,
+        evaluations: scenario.evaluations,
+      };
+    });
+
+    // Collect all comments
+    const allComments = personaEvaluations
+      .filter(e => e.comments)
+      .map(e => ({
+        scenarioId: e.scenarioId,
+        scenarioTitle: e.scenarioTitle,
+        comment: e.comments,
+        evaluatedAt: e.evaluatedAt,
+      }))
+      .sort((a, b) => new Date(b.evaluatedAt) - new Date(a.evaluatedAt));
+
+    // Determine if persona needs calibration
+    const needsCalibration = averageScores.overall < LOW_SCORE_THRESHOLD;
+
+    res.json({
+      personaId: id,
+      personaRole: persona.role,
+      version: persona.version || 1,
+      totalEvaluations: personaEvaluations.length,
+      averageScores,
+      needsCalibration,
+      calibrationThreshold: LOW_SCORE_THRESHOLD,
+      scenarioEvaluations,
+      allComments,
+    });
+  } catch (error) {
+    console.error('Error getting persona analytics:', error);
+    res.status(500).json({
+      error: 'Internal server error getting persona analytics',
+      details: error.message,
+    });
+  }
+});
+
+// GET /qa/analytics/scenarios - Analytics across all scenarios
+app.get('/qa/analytics/scenarios', (req, res) => {
+  try {
+    const allEvaluations = getAllEvaluations();
+
+    // Group by scenario
+    const scenarioMap = {};
+    for (const evaluation of allEvaluations) {
+      const scenarioId = evaluation.scenarioId;
+      if (!scenarioMap[scenarioId]) {
+        scenarioMap[scenarioId] = {
+          scenarioId,
+          scenarioTitle: evaluation.scenarioTitle,
+          evaluations: [],
+          personasEvaluated: new Set(),
+        };
+      }
+      scenarioMap[scenarioId].evaluations.push(evaluation);
+      scenarioMap[scenarioId].personasEvaluated.add(evaluation.personaId);
+    }
+
+    // Calculate analytics per scenario
+    const scenarios = Object.values(scenarioMap).map(scenario => {
+      const avgScores = calculateAverageScores(scenario.evaluations);
+      const personaCount = scenario.personasEvaluated.size;
+
+      // A scenario is problematic if avg < threshold across 2+ personas
+      const isProblematic = avgScores.overall < LOW_SCORE_THRESHOLD && personaCount >= 2;
+
+      return {
+        scenarioId: scenario.scenarioId,
+        scenarioTitle: scenario.scenarioTitle,
+        evaluationCount: scenario.evaluations.length,
+        personasEvaluated: personaCount,
+        averageScores: avgScores,
+        isProblematic,
+        comments: scenario.evaluations
+          .filter(e => e.comments)
+          .map(e => ({
+            personaId: e.personaId,
+            personaRole: e.personaRole,
+            comment: e.comments,
+          })),
+      };
+    });
+
+    // Sort: problematic first, then by overall score ascending
+    scenarios.sort((a, b) => {
+      if (a.isProblematic !== b.isProblematic) return a.isProblematic ? -1 : 1;
+      return a.averageScores.overall - b.averageScores.overall;
+    });
+
+    const problematicCount = scenarios.filter(s => s.isProblematic).length;
+
+    res.json({
+      totalScenarios: scenarios.length,
+      totalEvaluations: allEvaluations.length,
+      problematicScenarios: problematicCount,
+      threshold: LOW_SCORE_THRESHOLD,
+      scenarios,
+    });
+  } catch (error) {
+    console.error('Error getting scenario analytics:', error);
+    res.status(500).json({
+      error: 'Internal server error getting scenario analytics',
+      details: error.message,
+    });
+  }
+});
+
+// GET /qa/analytics/summary - Overall QA health summary
+app.get('/qa/analytics/summary', (req, res) => {
+  try {
+    const allEvaluations = getAllEvaluations();
+
+    // Get all evaluated personas
+    const personaMap = {};
+    for (const evaluation of allEvaluations) {
+      const personaId = evaluation.personaId;
+      if (!personaMap[personaId]) {
+        personaMap[personaId] = {
+          personaId,
+          personaRole: evaluation.personaRole,
+          personaVersion: evaluation.personaVersion,
+          evaluations: [],
+        };
+      }
+      personaMap[personaId].evaluations.push(evaluation);
+    }
+
+    // Calculate per-persona stats and identify flagged personas
+    const personaStats = Object.values(personaMap).map(persona => {
+      const avgScores = calculateAverageScores(persona.evaluations);
+      return {
+        personaId: persona.personaId,
+        personaRole: persona.personaRole,
+        version: persona.personaVersion,
+        evaluationCount: persona.evaluations.length,
+        averageScores: avgScores,
+        needsCalibration: avgScores.overall < LOW_SCORE_THRESHOLD,
+      };
+    });
+
+    const flaggedPersonas = personaStats.filter(p => p.needsCalibration);
+
+    // Get scenario stats
+    const scenarioMap = {};
+    for (const evaluation of allEvaluations) {
+      const scenarioId = evaluation.scenarioId;
+      if (!scenarioMap[scenarioId]) {
+        scenarioMap[scenarioId] = {
+          scenarioId,
+          scenarioTitle: evaluation.scenarioTitle,
+          evaluations: [],
+          personasEvaluated: new Set(),
+        };
+      }
+      scenarioMap[scenarioId].evaluations.push(evaluation);
+      scenarioMap[scenarioId].personasEvaluated.add(evaluation.personaId);
+    }
+
+    const problematicScenarios = Object.values(scenarioMap)
+      .map(s => ({
+        scenarioId: s.scenarioId,
+        scenarioTitle: s.scenarioTitle,
+        averageScore: calculateAverageScores(s.evaluations).overall,
+        personasEvaluated: s.personasEvaluated.size,
+      }))
+      .filter(s => s.averageScore < LOW_SCORE_THRESHOLD && s.personasEvaluated >= 2);
+
+    // Overall averages
+    const overallAverages = calculateAverageScores(allEvaluations);
+
+    res.json({
+      summary: {
+        totalEvaluations: allEvaluations.length,
+        totalPersonasEvaluated: Object.keys(personaMap).length,
+        totalScenariosUsed: Object.keys(scenarioMap).length,
+        overallAverageScore: overallAverages.overall,
+        threshold: LOW_SCORE_THRESHOLD,
+      },
+      overallAverages,
+      flaggedPersonas: {
+        count: flaggedPersonas.length,
+        personas: flaggedPersonas.map(p => ({
+          personaId: p.personaId,
+          role: p.personaRole,
+          version: p.version,
+          averageScore: p.averageScores.overall,
+        })),
+      },
+      problematicScenarios: {
+        count: problematicScenarios.length,
+        scenarios: problematicScenarios,
+      },
+      personaStats,
+    });
+  } catch (error) {
+    console.error('Error getting QA summary:', error);
+    res.status(500).json({
+      error: 'Internal server error getting QA summary',
+      details: error.message,
+    });
+  }
+});
+
+// GET /qa/analytics/export - Export evaluations as CSV
+app.get('/qa/analytics/export', (req, res) => {
+  try {
+    const { format } = req.query;
+
+    if (format !== 'csv') {
+      return res.status(400).json({
+        error: 'Invalid format. Only "csv" is supported.',
+      });
+    }
+
+    const allEvaluations = getAllEvaluations();
+
+    // Build CSV header
+    const headers = [
+      'Evaluation ID',
+      'Persona ID',
+      'Persona Role',
+      'Persona Version',
+      'Scenario ID',
+      'Scenario Title',
+      'Accuracy',
+      'Tone',
+      'Actionability',
+      'Risk Awareness',
+      'Average',
+      'Comments',
+      'Evaluated At',
+    ];
+
+    // Build CSV rows
+    const rows = allEvaluations.map(e => [
+      e.id,
+      e.personaId,
+      e.personaRole || '',
+      e.personaVersion || 1,
+      e.scenarioId,
+      e.scenarioTitle || '',
+      e.scores?.accuracy || '',
+      e.scores?.tone || '',
+      e.scores?.actionability || '',
+      e.scores?.riskAwareness || '',
+      e.scores?.average || '',
+      (e.comments || '').replace(/"/g, '""'), // Escape quotes for CSV
+      e.evaluatedAt || '',
+    ]);
+
+    // Format as CSV
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="qa-evaluations.csv"');
+    res.send(csvContent);
+  } catch (error) {
+    console.error('Error exporting evaluations:', error);
+    res.status(500).json({
+      error: 'Internal server error exporting evaluations',
+      details: error.message,
+    });
+  }
+});
+
+// ============================================
+// ADMIN ADVISOR LOGS ENDPOINTS (Story 3.2)
+// ============================================
+
+// GET /admin/advisor-logs - List advisor interaction logs with filters
+app.get('/admin/advisor-logs', (req, res) => {
+  try {
+    const { personaId, userId, fromDate, toDate, page, limit } = req.query;
+
+    // Load all advisor logs
+    const logIds = listDataDir('advisor-logs');
+    let logs = [];
+
+    for (const id of logIds) {
+      const log = dal.readData(`advisor-logs/${id}`);
+      if (log) {
+        logs.push(log);
+      }
+    }
+
+    // Apply filters
+    if (personaId) {
+      logs = logs.filter(l => l.personaId === personaId);
+    }
+    if (userId) {
+      logs = logs.filter(l => l.userId === userId);
+    }
+    if (fromDate) {
+      const fromTimestamp = new Date(fromDate).getTime();
+      logs = logs.filter(l => new Date(l.createdAt).getTime() >= fromTimestamp);
+    }
+    if (toDate) {
+      const toTimestamp = new Date(toDate).getTime();
+      logs = logs.filter(l => new Date(l.createdAt).getTime() <= toTimestamp);
+    }
+
+    // Sort by createdAt (newest first)
+    logs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    // Pagination
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    const totalLogs = logs.length;
+    const totalPages = Math.ceil(totalLogs / limitNum);
+    const startIndex = (pageNum - 1) * limitNum;
+    const endIndex = startIndex + limitNum;
+    const paginatedLogs = logs.slice(startIndex, endIndex);
+
+    res.json({
+      logs: paginatedLogs,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalLogs,
+        limit: limitNum,
+      },
+    });
+  } catch (error) {
+    console.error('Error listing advisor logs:', error);
+    res.status(500).json({
+      error: 'Internal server error listing advisor logs',
+      details: error.message,
+    });
+  }
+});
+
+// GET /admin/advisor-logs/:id - Get a single advisor log
+app.get('/admin/advisor-logs/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const log = dal.readData(`advisor-logs/${id}`);
+
+    if (!log) {
+      return res.status(404).json({
+        error: `Advisor log not found: ${id}`,
+      });
+    }
+
+    res.json(log);
+  } catch (error) {
+    console.error('Error getting advisor log:', error);
+    res.status(500).json({
+      error: 'Internal server error getting advisor log',
       details: error.message,
     });
   }
