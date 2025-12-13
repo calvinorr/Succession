@@ -592,6 +592,15 @@ app.post('/interviews/:id/message', async (req, res) => {
       });
     }
 
+    // Check for "done with topic" command
+    const donePatterns = [
+      "i'm done", "im done", "that's everything", "thats everything",
+      "let's move on", "lets move on", "nothing else", "that's all",
+      "thats all", "we're done", "were done", "finished", "complete"
+    ];
+    const messageLower = message.toLowerCase();
+    const isDoneCommand = donePatterns.some(p => messageLower.includes(p));
+
     // Add user message to messages array
     const userMessage = {
       role: 'user',
@@ -600,11 +609,43 @@ app.post('/interviews/:id/message', async (req, res) => {
     };
     interview.messages.push(userMessage);
 
-    // Get system prompt from interviewer agent
-    const systemPrompt = interviewer.getSystemPrompt(
-      interview.role,
-      interview.phase
-    );
+    let systemPrompt;
+
+    // Story 7.2: Use topic-aware interviewer if topicId is present
+    if (interview.topicId) {
+      const topic = dal.readData(`topics/${interview.topicId}`);
+      if (topic) {
+        // Analyse coverage from conversation so far
+        const coverage = interviewer.analyseCoverage(interview.messages);
+
+        // Store coverage in interview for tracking
+        interview.coverage = coverage;
+
+        // Get topic-aware system prompt
+        systemPrompt = interviewer.getTopicSystemPrompt(
+          topic,
+          coverage,
+          interview.messages.length
+        );
+
+        // If done command, add instruction to wrap up
+        if (isDoneCommand) {
+          systemPrompt += `\n\n## IMPORTANT: Expert is finishing this topic\nThe expert has indicated they want to finish this topic. Acknowledge their input, briefly summarise the key points captured, and confirm the topic is complete. Be warm and appreciative.`;
+        }
+      } else {
+        // Topic not found, fall back to role-based
+        systemPrompt = interviewer.getSystemPrompt(
+          interview.role || 'Finance Director',
+          interview.phase || 'warm-up'
+        );
+      }
+    } else {
+      // No topic, use role-based interviewer
+      systemPrompt = interviewer.getSystemPrompt(
+        interview.role,
+        interview.phase
+      );
+    }
 
     // Call LLM service with system prompt and full message history
     const assistantContent = await llm.chat(systemPrompt, interview.messages);
@@ -617,7 +658,18 @@ app.post('/interviews/:id/message', async (req, res) => {
     };
     interview.messages.push(assistantMessage);
 
+    // If done command detected, update topic status
+    if (isDoneCommand && interview.topicId) {
+      const topic = dal.readData(`topics/${interview.topicId}`);
+      if (topic && topic.status !== 'complete') {
+        topic.status = 'complete';
+        topic.updatedAt = new Date().toISOString();
+        dal.writeData(`topics/${interview.topicId}`, topic);
+      }
+    }
+
     // Save updated interview to DAL
+    interview.updatedAt = new Date().toISOString();
     dal.writeData(`interviews/${id}`, interview);
 
     // Check if we should auto-trigger a snapshot
@@ -629,12 +681,66 @@ app.post('/interviews/:id/message', async (req, res) => {
       });
     }
 
-    // Return JSON response with assistant's message
-    res.json({ response: assistantContent });
+    // Return JSON response with assistant's message and coverage info
+    const response = {
+      response: assistantContent,
+      ...(interview.coverage && { coverage: interview.coverage }),
+      ...(isDoneCommand && { topicComplete: true }),
+    };
+    res.json(response);
   } catch (error) {
     console.error('Error handling message:', error);
     res.status(500).json({
       error: 'Internal server error processing message',
+      details: error.message,
+    });
+  }
+});
+
+// GET /interviews/{id}/coverage - Get knowledge area coverage for an interview
+app.get('/interviews/:id/coverage', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Load interview from DAL
+    const interview = dal.readData(`interviews/${id}`);
+    if (!interview) {
+      return res.status(404).json({
+        error: `Interview not found: ${id}`,
+      });
+    }
+
+    // Analyse coverage from conversation
+    const coverage = interviewer.analyseCoverage(interview.messages);
+
+    // Get knowledge area definitions
+    const areas = interviewer.KNOWLEDGE_AREAS.map(area => ({
+      key: area.key,
+      name: area.name,
+      description: area.prompt,
+      covered: !!coverage[area.key],
+    }));
+
+    // Calculate summary
+    const coveredCount = areas.filter(a => a.covered).length;
+    const totalCount = areas.length;
+    const percentComplete = Math.round((coveredCount / totalCount) * 100);
+
+    res.json({
+      interviewId: id,
+      topicId: interview.topicId || null,
+      messageCount: interview.messages?.length || 0,
+      areas,
+      summary: {
+        covered: coveredCount,
+        total: totalCount,
+        percentComplete,
+      },
+    });
+  } catch (error) {
+    console.error('Error getting interview coverage:', error);
+    res.status(500).json({
+      error: 'Internal server error getting coverage',
       details: error.message,
     });
   }
