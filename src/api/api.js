@@ -114,14 +114,19 @@ app.get('/dashboard/stats', (req, res) => {
       }
     }
 
-    // Count personas by status
-    const personasByStatus = { draft: 0, pending: 0, active: 0, archived: 0 };
+    // Count personas by status (supports both old and new status values)
+    const personasByStatus = { Draft: 0, Validated: 0, Deprecated: 0 };
     let favoritePersonas = 0;
 
     for (const id of personaIds) {
       const persona = dal.readData(`personas/${id}`);
       if (persona) {
-        const status = persona.status || 'draft';
+        // Map old status values to new ones for backward compatibility
+        let status = persona.status || 'Draft';
+        if (status === 'draft') status = 'Draft';
+        else if (status === 'active' || status === 'pending') status = 'Validated';
+        else if (status === 'archived') status = 'Deprecated';
+
         if (personasByStatus[status] !== undefined) {
           personasByStatus[status]++;
         }
@@ -309,7 +314,41 @@ app.get('/interviews/:id', (req, res) => {
   }
 });
 
-const VALID_PERSONA_STATUSES = ['draft', 'pending', 'active', 'archived'];
+const VALID_PERSONA_STATUSES = ['Draft', 'Validated', 'Deprecated'];
+
+// Helper to get next version number for a role
+function getNextVersionForRole(role) {
+  const personaIds = listDataDir('personas');
+  let maxVersion = 0;
+
+  for (const id of personaIds) {
+    const persona = dal.readData(`personas/${id}`);
+    if (persona && persona.role === role) {
+      const version = persona.version || 1;
+      if (version > maxVersion) {
+        maxVersion = version;
+      }
+    }
+  }
+
+  return maxVersion + 1;
+}
+
+// Helper to deprecate old validated personas for a role
+function deprecateOldVersions(role, excludeId) {
+  const personaIds = listDataDir('personas');
+
+  for (const id of personaIds) {
+    if (id === excludeId) continue;
+
+    const persona = dal.readData(`personas/${id}`);
+    if (persona && persona.role === role && persona.status === 'Validated') {
+      persona.status = 'Deprecated';
+      persona.updatedAt = new Date().toISOString();
+      dal.writeData(`personas/${id}`, persona);
+    }
+  }
+}
 
 // Helper to normalize expertise array
 function normalizeExpertise(expertise) {
@@ -328,7 +367,7 @@ function normalizeExpertise(expertise) {
 // GET /personas - List all personas
 app.get('/personas', (req, res) => {
   try {
-    const { status: filterStatus, industry, isFavorite } = req.query;
+    const { status: filterStatus, role: filterRole, industry, isFavorite, latestValidated } = req.query;
     const personaIds = listDataDir('personas');
     let personas = [];
 
@@ -339,10 +378,11 @@ app.get('/personas', (req, res) => {
           id: persona.id,
           name: persona.name || persona.role,
           role: persona.role,
+          version: persona.version || 1,
           organization: persona.organization || 'Organization',
           bio: persona.bio || persona.promptText?.substring(0, 150) + '...',
           photoUrl: persona.photoUrl || null,
-          status: persona.status || 'draft',
+          status: persona.status || 'Draft',
           traits: persona.traits || [],
           expertise: normalizeExpertise(persona.expertise),
           industry: persona.industry || 'Finance & Banking',
@@ -360,6 +400,9 @@ app.get('/personas', (req, res) => {
     if (filterStatus) {
       personas = personas.filter(p => p.status === filterStatus);
     }
+    if (filterRole) {
+      personas = personas.filter(p => p.role === filterRole);
+    }
     if (industry) {
       personas = personas.filter(p => p.industry.toLowerCase().includes(industry.toLowerCase()));
     }
@@ -367,8 +410,27 @@ app.get('/personas', (req, res) => {
       personas = personas.filter(p => p.isFavorite === true);
     }
 
-    // Sort by createdAt (newest first)
-    personas.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    // Special filter: get only the latest validated persona per role
+    if (latestValidated === 'true') {
+      const validatedPersonas = personas.filter(p => p.status === 'Validated');
+      const latestByRole = {};
+
+      for (const p of validatedPersonas) {
+        if (!latestByRole[p.role] || p.version > latestByRole[p.role].version) {
+          latestByRole[p.role] = p;
+        }
+      }
+
+      personas = Object.values(latestByRole);
+    }
+
+    // Sort by role, then by version descending
+    personas.sort((a, b) => {
+      if (a.role !== b.role) {
+        return a.role.localeCompare(b.role);
+      }
+      return b.version - a.version;
+    });
 
     res.json(personas);
   } catch (error) {
@@ -900,14 +962,16 @@ app.post('/personas/build', async (req, res) => {
     ];
     const promptText = await llm.chat(systemPrompt, llmMessages);
 
-    // Create persona object
+    // Create persona object with versioning
     const personaId = Math.random().toString(36).substring(2, 15);
+    const version = getNextVersionForRole(interview.role);
     const persona = {
       id: personaId,
       role: interview.role,
+      version,
       interviewId,
       promptText,
-      status: 'draft',
+      status: 'Draft',
       createdAt: new Date().toISOString(),
     };
 
@@ -938,8 +1002,12 @@ app.get('/personas/:id', (req, res) => {
       });
     }
 
-    // Return the persona object
-    res.json(persona);
+    // Return the persona object with version defaulted if missing
+    res.json({
+      ...persona,
+      version: persona.version || 1,
+      status: persona.status || 'Draft',
+    });
   } catch (error) {
     console.error('Error retrieving persona:', error);
     res.status(500).json({
@@ -970,6 +1038,9 @@ app.put('/personas/:id', (req, res) => {
       });
     }
 
+    // Track if we're validating this persona
+    const isValidating = status === 'Validated' && persona.status !== 'Validated';
+
     // Merge updates with existing data
     if (name !== undefined) persona.name = name;
     if (role !== undefined) persona.role = role;
@@ -983,14 +1054,27 @@ app.put('/personas/:id', (req, res) => {
     if (industry !== undefined) persona.industry = industry;
     if (isFavorite !== undefined) persona.isFavorite = isFavorite;
 
+    // Ensure version is set (for legacy personas)
+    if (!persona.version) {
+      persona.version = 1;
+    }
+
     // Add updatedAt timestamp
     persona.updatedAt = new Date().toISOString();
 
     // Save updated persona
     dal.writeData(`personas/${id}`, persona);
 
+    // If validating, deprecate other validated personas for this role
+    if (isValidating && persona.role) {
+      deprecateOldVersions(persona.role, id);
+    }
+
     // Return updated persona
-    res.json(persona);
+    res.json({
+      ...persona,
+      version: persona.version || 1,
+    });
   } catch (error) {
     console.error('Error updating persona:', error);
     res.status(500).json({
