@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Succession | Persona Library</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand': {
+                            50: '#eef4ff',
+                            100: '#d9e5ff',
+                            200: '#bcd2ff',
+                            300: '#8eb5ff',
+                            400: '#598eff',
+                            500: '#3366ff',
+                            600: '#1a44f5',
+                            700: '#1333e1',
+                            800: '#162bb6',
+                            900: '#182a8f',
+                        },
+                        'surface': {
+                            0: '#ffffff',
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    },
+                    fontFamily: {
+                        'display': ['"DM Serif Display"', 'serif'],
+                        'body': ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glow': '0 0 40px -10px rgba(51, 102, 255, 0.3)',
+                        'card': '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
+                        'card-hover': '0 4px 20px rgba(0,0,0,0.08), 0 0 0 1px rgba(51, 102, 255, 0.1)',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'slide-up': 'slideUp 0.5s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(16px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .stagger-1 { animation-delay: 0.05s; }
+        .stagger-2 { animation-delay: 0.1s; }
+        .stagger-3 { animation-delay: 0.15s; }
+        .stagger-4 { animation-delay: 0.2s; }
+    </style>
+</head>
+
+<body class="bg-surface-50 font-body text-surface-800 h-screen flex overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-surface-0 border-r border-surface-200/80 flex flex-col h-full flex-shrink-0">
+        <div class="flex flex-col h-full p-5">
+            <!-- Logo -->
+            <div class="flex items-center gap-3 mb-10 px-1">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-glow">
+                    <span class="material-symbols-outlined text-white text-xl">hub</span>
+                </div>
+                <div>
+                    <h1 class="font-display text-xl text-surface-900 tracking-tight">Succession</h1>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-surface-400 font-medium">Expert Systems</p>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex flex-col gap-1 flex-1">
+                <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 transition-all">
+                    <span class="material-symbols-outlined text-[20px]">space_dashboard</span>
+                    <span class="text-sm font-medium">Dashboard</span>
+                </a>
+                <a href="index.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 transition-all">
+                    <span class="material-symbols-outlined text-[20px]">mic</span>
+                    <span class="text-sm font-medium">Interviews</span>
+                </a>
+                <a href="personas.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-brand-50 text-brand-600 transition-all">
+                    <span class="material-symbols-outlined filled text-[20px]">person_search</span>
+                    <span class="text-sm font-semibold">Personas</span>
+                </a>
+                <a href="knowledge-base.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 transition-all">
+                    <span class="material-symbols-outlined text-[20px]">menu_book</span>
+                    <span class="text-sm font-medium">Knowledge Base</span>
+                </a>
+                <div class="flex-1"></div>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 transition-all">
+                    <span class="material-symbols-outlined text-[20px]">settings</span>
+                    <span class="text-sm font-medium">Settings</span>
+                </a>
+            </nav>
+
+            <!-- User -->
+            <div class="border-t border-surface-200/80 pt-5 mt-4">
+                <div class="flex items-center gap-3 px-1">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-semibold text-sm">CU</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-surface-800 truncate">Calvin User</p>
+                        <p class="text-xs text-surface-400 truncate">admin@succession.io</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden">
+
+        <!-- Header -->
+        <header class="px-8 py-6 bg-surface-0 border-b border-surface-200/60 flex-shrink-0">
+            <div class="flex justify-between items-center gap-6">
+                <div>
+                    <h1 class="font-display text-3xl text-surface-900 tracking-tight">Persona Library</h1>
+                    <p class="text-surface-500 text-sm mt-1">Manage, browse, and organize your expert interview personas.</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 text-[20px]">search</span>
+                        <input type="text" id="search-input" placeholder="Search by name, role, or skill..." class="w-72 h-10 pl-10 pr-4 rounded-xl bg-surface-100 border-0 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:bg-surface-0 transition-all">
+                    </div>
+                    <button onclick="window.location.href='index.html'" class="flex items-center gap-2 h-10 px-5 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white rounded-xl text-sm font-semibold shadow-lg shadow-brand-500/25 transition-all">
+                        <span class="material-symbols-outlined text-[18px]">add</span>
+                        <span>Create Persona</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <div class="flex-1 flex overflow-hidden">
+
+            <!-- Filters Sidebar -->
+            <aside class="w-64 bg-surface-0 border-r border-surface-200/60 p-6 overflow-y-auto flex-shrink-0">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-surface-400">Filters</h3>
+                    <button id="reset-filters" class="text-xs font-semibold text-brand-600 hover:text-brand-700">Reset</button>
+                </div>
+
+                <!-- Library Sections -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-surface-700 mb-3">Library</h4>
+                    <div class="space-y-1">
+                        <button class="filter-section w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left bg-brand-50 text-brand-600 font-medium" data-section="all">
+                            <span class="material-symbols-outlined text-[18px]">folder</span>
+                            All Personas
+                        </button>
+                        <button class="filter-section w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left text-surface-600 hover:bg-surface-100 transition-colors" data-section="favorites">
+                            <span class="material-symbols-outlined text-[18px]">star</span>
+                            Favorites
+                        </button>
+                        <button class="filter-section w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left text-surface-600 hover:bg-surface-100 transition-colors" data-section="recent">
+                            <span class="material-symbols-outlined text-[18px]">history</span>
+                            Recently Viewed
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Status Filter -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-surface-700 mb-3">Status</h4>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="filter-status w-4 h-4 rounded border-surface-300 text-brand-600 focus:ring-brand-500" value="active">
+                            <span class="text-sm text-surface-600">Active</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="filter-status w-4 h-4 rounded border-surface-300 text-brand-600 focus:ring-brand-500" value="draft">
+                            <span class="text-sm text-surface-600">Draft</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Role/Topic Filter -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-surface-700 mb-3">Role</h4>
+                    <div id="role-filters" class="space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="filter-role w-4 h-4 rounded border-surface-300 text-brand-600 focus:ring-brand-500" value="Finance Director">
+                            <span class="text-sm text-surface-600">Finance Director</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="filter-role w-4 h-4 rounded border-surface-300 text-brand-600 focus:ring-brand-500" value="Head of AP">
+                            <span class="text-sm text-surface-600">Head of AP</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="filter-role w-4 h-4 rounded border-surface-300 text-brand-600 focus:ring-brand-500" value="Head of AR">
+                            <span class="text-sm text-surface-600">Head of AR</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="filter-role w-4 h-4 rounded border-surface-300 text-brand-600 focus:ring-brand-500" value="Head of Treasury">
+                            <span class="text-sm text-surface-600">Head of Treasury</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Frequency Filter -->
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-surface-700 mb-3">Frequency</h4>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="frequency" class="filter-frequency w-4 h-4 border-surface-300 text-brand-600 focus:ring-brand-500" value="">
+                            <span class="text-sm text-surface-600">Any</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="frequency" class="filter-frequency w-4 h-4 border-surface-300 text-brand-600 focus:ring-brand-500" value="daily">
+                            <span class="text-sm text-surface-600">Daily</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="frequency" class="filter-frequency w-4 h-4 border-surface-300 text-brand-600 focus:ring-brand-500" value="weekly">
+                            <span class="text-sm text-surface-600">Weekly</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="frequency" class="filter-frequency w-4 h-4 border-surface-300 text-brand-600 focus:ring-brand-500" value="monthly">
+                            <span class="text-sm text-surface-600">Monthly</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="frequency" class="filter-frequency w-4 h-4 border-surface-300 text-brand-600 focus:ring-brand-500" value="annual">
+                            <span class="text-sm text-surface-600">Annual</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="frequency" class="filter-frequency w-4 h-4 border-surface-300 text-brand-600 focus:ring-brand-500" value="ad-hoc">
+                            <span class="text-sm text-surface-600">Ad-hoc</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Apply Filters Button -->
+                <button id="apply-filters" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold transition-colors">
+                    Apply Filters
+                </button>
+            </aside>
+
+            <!-- Personas Grid -->
+            <div class="flex-1 overflow-y-auto p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <p id="results-count" class="text-sm text-surface-500">Showing <span id="shown-count" class="font-semibold text-surface-700">0</span> of <span id="total-count" class="font-semibold text-surface-700">0</span> personas</p>
+                    <div class="flex items-center gap-4">
+                        <!-- Sort Dropdown -->
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-surface-500">Sort by:</span>
+                            <select id="sort-select" class="text-sm font-medium text-surface-700 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0">
+                                <option value="date-desc">Newest First</option>
+                                <option value="date-asc">Oldest First</option>
+                                <option value="name-asc">Name (A-Z)</option>
+                                <option value="name-desc">Name (Z-A)</option>
+                                <option value="role">Role</option>
+                            </select>
+                        </div>
+                        <!-- View Toggle -->
+                        <div class="flex items-center gap-1 bg-surface-100 rounded-lg p-1">
+                            <button id="view-grid" class="view-toggle p-1.5 rounded-md bg-surface-0 text-brand-600 shadow-sm">
+                                <span class="material-symbols-outlined text-[18px]">grid_view</span>
+                            </button>
+                            <button id="view-list" class="view-toggle p-1.5 rounded-md text-surface-400 hover:text-surface-600">
+                                <span class="material-symbols-outlined text-[18px]">view_list</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="personas-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    <!-- Populated by JS -->
+                    <div class="col-span-full flex items-center justify-center py-20 text-surface-400">
+                        <span class="material-symbols-outlined text-5xl animate-pulse">hourglass_empty</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Persona Detail Modal -->
+    <div id="persona-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-surface-900/50 backdrop-blur-sm" onclick="closeModal()"></div>
+        <div class="absolute right-0 top-0 bottom-0 w-full max-w-xl bg-surface-0 shadow-2xl overflow-y-auto">
+            <div id="modal-content" class="p-8">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allPersonas = [];
+        let filteredPersonas = [];
+        let currentView = 'grid';
+        let currentSection = 'all';
+        let favorites = JSON.parse(localStorage.getItem('persona-favorites') || '[]');
+        let recentlyViewed = JSON.parse(localStorage.getItem('persona-recent') || '[]');
+
+        async function loadPersonas() {
+            try {
+                const res = await fetch('/personas');
+                allPersonas = await res.json();
+                filteredPersonas = [...allPersonas];
+                updateResultsCount();
+                renderPersonas(filteredPersonas);
+            } catch (error) {
+                console.error('Error loading personas:', error);
+            }
+        }
+
+        function updateResultsCount() {
+            document.getElementById('shown-count').textContent = filteredPersonas.length;
+            document.getElementById('total-count').textContent = allPersonas.length;
+        }
+
+        function applyFilters() {
+            let result = [...allPersonas];
+
+            // Library section filter
+            if (currentSection === 'favorites') {
+                result = result.filter(p => favorites.includes(p.id));
+            } else if (currentSection === 'recent') {
+                result = result.filter(p => recentlyViewed.includes(p.id));
+                // Sort by recently viewed order
+                result.sort((a, b) => recentlyViewed.indexOf(a.id) - recentlyViewed.indexOf(b.id));
+            }
+
+            // Status filter
+            const statusFilters = [...document.querySelectorAll('.filter-status:checked')].map(cb => cb.value);
+            if (statusFilters.length > 0) {
+                result = result.filter(p => statusFilters.includes(p.status || 'draft'));
+            }
+
+            // Role filter
+            const roleFilters = [...document.querySelectorAll('.filter-role:checked')].map(cb => cb.value);
+            if (roleFilters.length > 0) {
+                result = result.filter(p => roleFilters.includes(p.role));
+            }
+
+            // Frequency filter
+            const frequencyFilter = document.querySelector('.filter-frequency:checked')?.value;
+            if (frequencyFilter) {
+                result = result.filter(p => p.frequency === frequencyFilter);
+            }
+
+            // Apply sorting
+            const sortValue = document.getElementById('sort-select').value;
+            result = sortPersonas(result, sortValue);
+
+            filteredPersonas = result;
+            updateResultsCount();
+            renderPersonas(filteredPersonas);
+        }
+
+        function sortPersonas(personas, sortBy) {
+            const sorted = [...personas];
+            switch (sortBy) {
+                case 'date-desc':
+                    sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    break;
+                case 'date-asc':
+                    sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+                    break;
+                case 'name-asc':
+                    sorted.sort((a, b) => (a.name || a.role || '').localeCompare(b.name || b.role || ''));
+                    break;
+                case 'name-desc':
+                    sorted.sort((a, b) => (b.name || b.role || '').localeCompare(a.name || a.role || ''));
+                    break;
+                case 'role':
+                    sorted.sort((a, b) => (a.role || '').localeCompare(b.role || ''));
+                    break;
+            }
+            return sorted;
+        }
+
+        function renderPersonas(personas) {
+            const grid = document.getElementById('personas-grid');
+
+            if (personas.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center py-20">
+                        <span class="material-symbols-outlined text-5xl text-surface-300 mb-4">person_off</span>
+                        <p class="text-surface-500 mb-4">No personas found</p>
+                        <a href="index.html" class="flex items-center gap-2 text-sm font-semibold text-brand-600 hover:text-brand-700">
+                            <span class="material-symbols-outlined text-[16px]">add</span>
+                            Create your first persona
+                        </a>
+                    </div>
+                `;
+                return;
+            }
+
+            const colors = [
+                'from-blue-400 to-blue-600',
+                'from-violet-400 to-violet-600',
+                'from-amber-400 to-amber-600',
+                'from-emerald-400 to-emerald-600',
+                'from-rose-400 to-rose-600',
+                'from-cyan-400 to-cyan-600',
+            ];
+
+            const statusColors = {
+                'draft': 'bg-amber-50 text-amber-600 border-amber-200',
+                'active': 'bg-emerald-50 text-emerald-600 border-emerald-200',
+                'pending': 'bg-blue-50 text-blue-600 border-blue-200',
+                'archived': 'bg-surface-100 text-surface-500 border-surface-200',
+            };
+
+            // Update grid classes based on view
+            if (currentView === 'grid') {
+                grid.className = 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5';
+            } else {
+                grid.className = 'flex flex-col gap-3';
+            }
+
+            grid.innerHTML = personas.map((persona, index) => {
+                const gradientClass = colors[index % colors.length];
+                const statusClass = statusColors[persona.status] || statusColors['draft'];
+                const initials = (persona.name || persona.role || 'PE').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                const traits = persona.traits?.slice(0, 3) || [];
+                const isFavorite = favorites.includes(persona.id);
+
+                if (currentView === 'list') {
+                    return `
+                        <div class="group bg-surface-0 rounded-xl border border-surface-200/60 shadow-card hover:shadow-card-hover transition-all duration-300 cursor-pointer overflow-hidden opacity-0 animate-slide-up flex items-center gap-4 p-4" style="animation-delay: ${index * 0.03}s" onclick="openModal('${persona.id}')">
+                            <div class="w-12 h-12 rounded-lg bg-gradient-to-br ${gradientClass} flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
+                                ${initials}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-semibold text-surface-800 group-hover:text-brand-600 transition-colors truncate">${persona.name || persona.role}</h3>
+                                    <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide border ${statusClass} flex-shrink-0">
+                                        ${persona.status || 'draft'}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-surface-500">${persona.role}</p>
+                            </div>
+                            <div class="flex items-center gap-3 flex-shrink-0">
+                                <div class="flex gap-1">
+                                    ${traits.slice(0, 2).map(trait => `
+                                        <span class="px-2 py-1 bg-surface-100 text-surface-500 text-[10px] font-semibold rounded-full uppercase tracking-wide">${trait}</span>
+                                    `).join('')}
+                                </div>
+                                <button onclick="toggleFavorite('${persona.id}', event)" class="p-1.5 rounded-lg hover:bg-surface-100 transition-colors ${isFavorite ? 'text-amber-500' : 'text-surface-300 hover:text-amber-400'}">
+                                    <span class="material-symbols-outlined ${isFavorite ? 'filled' : ''} text-[20px]">star</span>
+                                </button>
+                                <span class="text-xs text-surface-400">${new Date(persona.createdAt).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="group bg-surface-0 rounded-2xl border border-surface-200/60 shadow-card hover:shadow-card-hover transition-all duration-300 cursor-pointer overflow-hidden opacity-0 animate-slide-up" style="animation-delay: ${index * 0.05}s" onclick="openModal('${persona.id}')">
+                        <div class="p-6">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-14 h-14 rounded-xl bg-gradient-to-br ${gradientClass} flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                                        ${initials}
+                                    </div>
+                                    <div>
+                                        <h3 class="font-semibold text-surface-800 group-hover:text-brand-600 transition-colors">${persona.name || persona.role}</h3>
+                                        <p class="text-sm text-surface-500">${persona.role}</p>
+                                        <p class="text-xs text-surface-400">${persona.organization || 'Organization'}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="toggleFavorite('${persona.id}', event)" class="p-1 rounded-lg hover:bg-surface-100 transition-colors ${isFavorite ? 'text-amber-500' : 'text-surface-300 hover:text-amber-400'}">
+                                        <span class="material-symbols-outlined ${isFavorite ? 'filled' : ''} text-[20px]">star</span>
+                                    </button>
+                                    <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide border ${statusClass}">
+                                        ${persona.status || 'draft'}
+                                    </span>
+                                </div>
+                            </div>
+                            <p class="text-sm text-surface-600 line-clamp-2 mb-4">${persona.bio || 'Expert persona based on interview insights...'}</p>
+                            <div class="flex flex-wrap gap-2">
+                                ${traits.map(trait => `
+                                    <span class="px-2 py-1 bg-surface-100 text-surface-500 text-[10px] font-semibold rounded-full uppercase tracking-wide">${trait}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="px-6 py-3 bg-surface-50 border-t border-surface-100 flex items-center justify-between">
+                            <span class="text-xs text-surface-400">Created ${new Date(persona.createdAt).toLocaleDateString()}</span>
+                            <span class="text-sm font-semibold text-brand-600 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                                View Details
+                                <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openModal(personaId) {
+            const persona = allPersonas.find(p => p.id === personaId);
+            if (!persona) return;
+
+            // Track recently viewed
+            trackRecentlyViewed(personaId);
+
+            const modal = document.getElementById('persona-modal');
+            const content = document.getElementById('modal-content');
+
+            content.innerHTML = `
+                <div class="flex items-center justify-between mb-8">
+                    <h2 class="font-display text-2xl text-surface-900">${persona.name || persona.role}</h2>
+                    <button onclick="closeModal()" class="p-2 rounded-lg hover:bg-surface-100 text-surface-400 hover:text-surface-600 transition-colors">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-4 mb-6 p-4 bg-surface-50 rounded-xl">
+                    <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-bold text-xl">
+                        ${(persona.name || persona.role || 'PE').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                        <p class="font-semibold text-surface-800">${persona.role}</p>
+                        <p class="text-sm text-surface-500">${persona.organization || 'Organization'}</p>
+                        <p class="text-xs text-surface-400 mt-1">Created ${new Date(persona.createdAt).toLocaleDateString()}</p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-surface-700 mb-2">About</h3>
+                    <p class="text-sm text-surface-600 leading-relaxed">${persona.bio || 'Expert persona synthesized from interview insights.'}</p>
+                </div>
+
+                ${persona.traits?.length ? `
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-surface-700 mb-2">Behavioral Traits</h3>
+                    <div class="flex flex-wrap gap-2">
+                        ${persona.traits.map(t => `<span class="px-3 py-1.5 bg-brand-50 text-brand-600 text-xs font-semibold rounded-full">${t}</span>`).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-surface-700 mb-2">Ask this Persona</h3>
+                    <div class="flex gap-2">
+                        <input type="text" id="advise-question" placeholder="Ask a question..." class="flex-1 h-10 px-4 rounded-lg bg-surface-100 border-0 text-sm placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
+                        <button onclick="askPersona('${persona.id}')" class="h-10 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-semibold transition-colors">
+                            Ask
+                        </button>
+                    </div>
+                    <div id="advise-response" class="mt-4 hidden p-4 bg-surface-50 rounded-lg text-sm text-surface-700"></div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('persona-modal').classList.add('hidden');
+        }
+
+        async function askPersona(personaId) {
+            const question = document.getElementById('advise-question').value;
+            if (!question) return;
+
+            const responseDiv = document.getElementById('advise-response');
+            responseDiv.classList.remove('hidden');
+            responseDiv.innerHTML = '<span class="animate-pulse">Thinking...</span>';
+
+            try {
+                const res = await fetch(`/personas/${personaId}/advise`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                });
+                const data = await res.json();
+                responseDiv.innerHTML = data.response || 'No response received.';
+            } catch (error) {
+                responseDiv.innerHTML = 'Error getting response. Please try again.';
+            }
+        }
+
+        // Search functionality
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            if (query === '') {
+                applyFilters();
+                return;
+            }
+            const filtered = filteredPersonas.filter(p =>
+                (p.name || '').toLowerCase().includes(query) ||
+                (p.role || '').toLowerCase().includes(query) ||
+                (p.bio || '').toLowerCase().includes(query) ||
+                (p.traits || []).some(t => t.toLowerCase().includes(query))
+            );
+            renderPersonas(filtered);
+            document.getElementById('shown-count').textContent = filtered.length;
+        });
+
+        // Reset filters
+        document.getElementById('reset-filters').addEventListener('click', () => {
+            document.querySelectorAll('.filter-status, .filter-role').forEach(cb => cb.checked = false);
+            document.querySelector('.filter-frequency[value=""]').checked = true;
+            currentSection = 'all';
+            updateSectionButtons();
+            filteredPersonas = [...allPersonas];
+            updateResultsCount();
+            renderPersonas(filteredPersonas);
+        });
+
+        // Apply filters button
+        document.getElementById('apply-filters').addEventListener('click', applyFilters);
+
+        // Library section buttons
+        document.querySelectorAll('.filter-section').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentSection = btn.dataset.section;
+                updateSectionButtons();
+                applyFilters();
+            });
+        });
+
+        function updateSectionButtons() {
+            document.querySelectorAll('.filter-section').forEach(btn => {
+                if (btn.dataset.section === currentSection) {
+                    btn.classList.add('bg-brand-50', 'text-brand-600', 'font-medium');
+                    btn.classList.remove('text-surface-600', 'hover:bg-surface-100');
+                } else {
+                    btn.classList.remove('bg-brand-50', 'text-brand-600', 'font-medium');
+                    btn.classList.add('text-surface-600', 'hover:bg-surface-100');
+                }
+            });
+        }
+
+        // Sort dropdown
+        document.getElementById('sort-select').addEventListener('change', applyFilters);
+
+        // View toggle
+        document.getElementById('view-grid').addEventListener('click', () => {
+            currentView = 'grid';
+            updateViewToggle();
+            renderPersonas(filteredPersonas);
+        });
+
+        document.getElementById('view-list').addEventListener('click', () => {
+            currentView = 'list';
+            updateViewToggle();
+            renderPersonas(filteredPersonas);
+        });
+
+        function updateViewToggle() {
+            const gridBtn = document.getElementById('view-grid');
+            const listBtn = document.getElementById('view-list');
+
+            if (currentView === 'grid') {
+                gridBtn.classList.add('bg-surface-0', 'text-brand-600', 'shadow-sm');
+                gridBtn.classList.remove('text-surface-400');
+                listBtn.classList.remove('bg-surface-0', 'text-brand-600', 'shadow-sm');
+                listBtn.classList.add('text-surface-400');
+            } else {
+                listBtn.classList.add('bg-surface-0', 'text-brand-600', 'shadow-sm');
+                listBtn.classList.remove('text-surface-400');
+                gridBtn.classList.remove('bg-surface-0', 'text-brand-600', 'shadow-sm');
+                gridBtn.classList.add('text-surface-400');
+            }
+        }
+
+        // Track recently viewed
+        function trackRecentlyViewed(personaId) {
+            recentlyViewed = recentlyViewed.filter(id => id !== personaId);
+            recentlyViewed.unshift(personaId);
+            recentlyViewed = recentlyViewed.slice(0, 10); // Keep last 10
+            localStorage.setItem('persona-recent', JSON.stringify(recentlyViewed));
+        }
+
+        // Toggle favorite
+        function toggleFavorite(personaId, event) {
+            event.stopPropagation();
+            if (favorites.includes(personaId)) {
+                favorites = favorites.filter(id => id !== personaId);
+            } else {
+                favorites.push(personaId);
+            }
+            localStorage.setItem('persona-favorites', JSON.stringify(favorites));
+            renderPersonas(filteredPersonas);
+        }
+
+        // Load on ready
+        document.addEventListener('DOMContentLoaded', loadPersonas);
+    </script>
+</body>
+</html>
