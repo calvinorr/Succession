@@ -209,7 +209,7 @@ app.get('/dashboard/stats', (req, res) => {
 // GET /interviews - List all interviews
 app.get('/interviews', (req, res) => {
   try {
-    const { status: filterStatus, expertId, projectId, topicId } = req.query;
+    const { status: filterStatus, expertId, projectId, topicId, role, sortBy, sortOrder, page, limit } = req.query;
     const interviewIds = listDataDir('interviews');
     let interviews = [];
 
@@ -232,6 +232,7 @@ app.get('/interviews', (req, res) => {
           status,
           messageCount: interview.messages ? interview.messages.length : 0,
           createdAt: interview.createdAt,
+          updatedAt: interview.updatedAt || interview.createdAt,
           // For UI compatibility with designs
           expertName: interview.expertName || 'Unknown Expert',
           industry: interview.industry || 'Finance & Banking',
@@ -258,9 +259,55 @@ app.get('/interviews', (req, res) => {
     if (topicId) {
       interviews = interviews.filter(i => i.topicId === topicId);
     }
+    if (role) {
+      interviews = interviews.filter(i => i.role === role);
+    }
 
-    // Sort by createdAt (newest first)
-    interviews.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    // Sorting (default: createdAt descending)
+    const validSortFields = ['createdAt', 'updatedAt', 'status', 'role', 'expertName', 'messageCount'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    const sortDesc = sortOrder !== 'asc';
+
+    interviews.sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+
+      // Handle date fields
+      if (sortField === 'createdAt' || sortField === 'updatedAt') {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      }
+      // Handle string fields
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+
+      if (aVal < bVal) return sortDesc ? 1 : -1;
+      if (aVal > bVal) return sortDesc ? -1 : 1;
+      return 0;
+    });
+
+    // Pagination (optional - if page/limit not provided, return all)
+    if (page || limit) {
+      const pageNum = parseInt(page, 10) || 1;
+      const limitNum = parseInt(limit, 10) || 20;
+      const totalInterviews = interviews.length;
+      const totalPages = Math.ceil(totalInterviews / limitNum);
+      const startIndex = (pageNum - 1) * limitNum;
+      const endIndex = startIndex + limitNum;
+      const paginatedInterviews = interviews.slice(startIndex, endIndex);
+
+      return res.json({
+        interviews: paginatedInterviews,
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalInterviews,
+          limit: limitNum,
+        },
+      });
+    }
 
     res.json(interviews);
   } catch (error) {
@@ -367,7 +414,7 @@ function normalizeExpertise(expertise) {
 // GET /personas - List all personas
 app.get('/personas', (req, res) => {
   try {
-    const { status: filterStatus, role: filterRole, industry, isFavorite, latestValidated } = req.query;
+    const { status: filterStatus, role: filterRole, industry, isFavorite, latestValidated, sortBy, sortOrder, page, limit } = req.query;
     const personaIds = listDataDir('personas');
     let personas = [];
 
@@ -426,13 +473,61 @@ app.get('/personas', (req, res) => {
       personas = Object.values(latestByRole);
     }
 
-    // Sort by role, then by version descending
-    personas.sort((a, b) => {
-      if (a.role !== b.role) {
-        return a.role.localeCompare(b.role);
-      }
-      return b.version - a.version;
-    });
+    // Sorting (default: role asc, then version desc)
+    const validSortFields = ['createdAt', 'updatedAt', 'status', 'role', 'name', 'version', 'validatedAt'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : null;
+    const sortDesc = sortOrder !== 'asc';
+
+    if (sortField) {
+      personas.sort((a, b) => {
+        let aVal = a[sortField];
+        let bVal = b[sortField];
+
+        // Handle date fields
+        if (sortField === 'createdAt' || sortField === 'updatedAt' || sortField === 'validatedAt') {
+          aVal = aVal ? new Date(aVal).getTime() : 0;
+          bVal = bVal ? new Date(bVal).getTime() : 0;
+        }
+        // Handle string fields
+        if (typeof aVal === 'string') {
+          aVal = aVal.toLowerCase();
+          bVal = (bVal || '').toLowerCase();
+        }
+
+        if (aVal < bVal) return sortDesc ? 1 : -1;
+        if (aVal > bVal) return sortDesc ? -1 : 1;
+        return 0;
+      });
+    } else {
+      // Default sort: by role, then by version descending
+      personas.sort((a, b) => {
+        if (a.role !== b.role) {
+          return a.role.localeCompare(b.role);
+        }
+        return b.version - a.version;
+      });
+    }
+
+    // Pagination (optional - if page/limit not provided, return all)
+    if (page || limit) {
+      const pageNum = parseInt(page, 10) || 1;
+      const limitNum = parseInt(limit, 10) || 20;
+      const totalPersonas = personas.length;
+      const totalPages = Math.ceil(totalPersonas / limitNum);
+      const startIndex = (pageNum - 1) * limitNum;
+      const endIndex = startIndex + limitNum;
+      const paginatedPersonas = personas.slice(startIndex, endIndex);
+
+      return res.json({
+        personas: paginatedPersonas,
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalPersonas,
+          limit: limitNum,
+        },
+      });
+    }
 
     res.json(personas);
   } catch (error) {
@@ -2707,6 +2802,78 @@ app.get('/qa/analytics/export', (req, res) => {
     console.error('Error exporting evaluations:', error);
     res.status(500).json({
       error: 'Internal server error exporting evaluations',
+      details: error.message,
+    });
+  }
+});
+
+// ============================================
+// ADMIN DASHBOARD ENDPOINT (Story 4.2)
+// ============================================
+
+// GET /admin/dashboard - Admin overview of system data
+app.get('/admin/dashboard', (req, res) => {
+  try {
+    const interviewIds = listDataDir('interviews');
+    const personaIds = listDataDir('personas');
+
+    // Count interviews by status
+    let totalInterviews = interviewIds.length;
+    let scheduledInterviews = 0;
+    let activeInterviews = 0;
+    let completedInterviews = 0;
+
+    for (const id of interviewIds) {
+      const interview = dal.readData(`interviews/${id}`);
+      if (interview) {
+        if (interview.phase === 'complete') {
+          completedInterviews++;
+        } else if (interview.messages && interview.messages.length > 0) {
+          activeInterviews++;
+        } else {
+          scheduledInterviews++;
+        }
+      }
+    }
+
+    // Count personas by status
+    let completedPersonas = 0; // Total personas generated
+    let validatedPersonas = 0;
+    let draftPersonas = 0;
+    let deprecatedPersonas = 0;
+
+    for (const id of personaIds) {
+      const persona = dal.readData(`personas/${id}`);
+      if (persona) {
+        completedPersonas++;
+        let status = persona.status || 'Draft';
+        // Normalize status
+        if (status === 'draft') status = 'Draft';
+        else if (status === 'active' || status === 'pending') status = 'Validated';
+        else if (status === 'archived') status = 'Deprecated';
+
+        if (status === 'Validated') validatedPersonas++;
+        else if (status === 'Draft') draftPersonas++;
+        else if (status === 'Deprecated') deprecatedPersonas++;
+      }
+    }
+
+    // Response matches spec format
+    res.json({
+      totalInterviews,
+      completedPersonas,
+      validatedPersonas,
+      draftPersonas,
+      // Additional useful metrics
+      scheduledInterviews,
+      activeInterviews,
+      completedInterviews,
+      deprecatedPersonas,
+    });
+  } catch (error) {
+    console.error('Error getting admin dashboard:', error);
+    res.status(500).json({
+      error: 'Internal server error getting admin dashboard',
       details: error.message,
     });
   }
