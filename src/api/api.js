@@ -7,6 +7,7 @@ const llm = require('../services/llm');
 const interviewer = require('../agents/interviewer');
 const noteTaker = require('../agents/note-taker');
 const personaBuilder = require('../agents/persona-builder');
+const knowledgeBuilder = require('../agents/knowledge-builder');
 const fs = require('fs');
 const path = require('path');
 
@@ -1646,6 +1647,250 @@ app.put('/topics/reorder', (req, res) => {
     console.error('Error reordering topics:', error);
     res.status(500).json({
       error: 'Internal server error reordering topics',
+      details: error.message,
+    });
+  }
+});
+
+// ============================================
+// KNOWLEDGE ENTRY ENDPOINTS (Story 7.3)
+// ============================================
+
+const VALID_KNOWLEDGE_ENTRY_STATUSES = ['draft', 'reviewed', 'published'];
+
+// POST /topics/:id/synthesize - Generate knowledge entry from interview
+app.post('/topics/:id/synthesize', async (req, res) => {
+  try {
+    const { id: topicId } = req.params;
+
+    // Load topic
+    const topic = dal.readData(`topics/${topicId}`);
+    if (!topic) {
+      return res.status(404).json({
+        error: `Topic not found: ${topicId}`,
+      });
+    }
+
+    // Find interview for this topic
+    const interviewIds = listDataDir('interviews');
+    let interview = null;
+
+    for (const interviewId of interviewIds) {
+      const i = dal.readData(`interviews/${interviewId}`);
+      if (i && i.topicId === topicId) {
+        interview = i;
+        break;
+      }
+    }
+
+    if (!interview) {
+      return res.status(400).json({
+        error: `No interview found for topic: ${topicId}`,
+      });
+    }
+
+    if (!interview.messages || interview.messages.length === 0) {
+      return res.status(400).json({
+        error: 'Interview has no messages to synthesize',
+      });
+    }
+
+    // Load all topics for cross-reference detection
+    const allTopics = [];
+    const allTopicIds = listDataDir('topics');
+    for (const tid of allTopicIds) {
+      const t = dal.readData(`topics/${tid}`);
+      if (t) allTopics.push(t);
+    }
+
+    // Get system prompt with topic context
+    const systemPrompt = knowledgeBuilder.getSystemPrompt(topic, allTopics);
+
+    // Format transcript
+    const transcript = knowledgeBuilder.formatTranscript(interview.messages);
+
+    // Call LLM to synthesize
+    const llmMessages = [{ role: 'user', content: transcript }];
+    const llmResponse = await llm.chat(systemPrompt, llmMessages);
+
+    // Parse and validate response
+    const parsed = knowledgeBuilder.parseResponse(llmResponse);
+
+    // Resolve cross-references to topic IDs
+    const crossReferences = knowledgeBuilder.resolveCrossReferences(
+      parsed.crossReferences,
+      allTopics
+    );
+
+    // Create knowledge entry
+    const entryId = Math.random().toString(36).substring(2, 15);
+    const knowledgeEntry = {
+      id: entryId,
+      topicId,
+      topicName: topic.name,
+      interviewId: interview.id,
+      sections: parsed.sections,
+      crossReferences,
+      qualityNotes: parsed.qualityNotes,
+      status: 'draft',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Store knowledge entry
+    dal.writeData(`knowledge-entries/${entryId}`, knowledgeEntry);
+
+    // Update topic status to complete
+    topic.status = 'complete';
+    topic.knowledgeEntryId = entryId;
+    topic.updatedAt = new Date().toISOString();
+    dal.writeData(`topics/${topicId}`, topic);
+
+    res.status(201).json(knowledgeEntry);
+  } catch (error) {
+    console.error('Error synthesizing knowledge entry:', error);
+    res.status(500).json({
+      error: 'Internal server error synthesizing knowledge entry',
+      details: error.message,
+    });
+  }
+});
+
+// GET /knowledge-entries - List all knowledge entries
+app.get('/knowledge-entries', (req, res) => {
+  try {
+    const { status, topicId } = req.query;
+    const entryIds = listDataDir('knowledge-entries');
+    let entries = [];
+
+    for (const id of entryIds) {
+      const entry = dal.readData(`knowledge-entries/${id}`);
+      if (entry) {
+        entries.push(entry);
+      }
+    }
+
+    // Apply filters
+    if (status) {
+      entries = entries.filter(e => e.status === status);
+    }
+    if (topicId) {
+      entries = entries.filter(e => e.topicId === topicId);
+    }
+
+    // Sort by createdAt (newest first)
+    entries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json(entries);
+  } catch (error) {
+    console.error('Error listing knowledge entries:', error);
+    res.status(500).json({
+      error: 'Internal server error listing knowledge entries',
+      details: error.message,
+    });
+  }
+});
+
+// GET /knowledge-entries/:id - Get a single knowledge entry
+app.get('/knowledge-entries/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const entry = dal.readData(`knowledge-entries/${id}`);
+
+    if (!entry) {
+      return res.status(404).json({
+        error: `Knowledge entry not found: ${id}`,
+      });
+    }
+
+    res.json(entry);
+  } catch (error) {
+    console.error('Error getting knowledge entry:', error);
+    res.status(500).json({
+      error: 'Internal server error getting knowledge entry',
+      details: error.message,
+    });
+  }
+});
+
+// PUT /knowledge-entries/:id - Update a knowledge entry (for expert review/edit)
+app.put('/knowledge-entries/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sections, status, crossReferences, qualityNotes } = req.body;
+
+    const entry = dal.readData(`knowledge-entries/${id}`);
+    if (!entry) {
+      return res.status(404).json({
+        error: `Knowledge entry not found: ${id}`,
+      });
+    }
+
+    // Validate status if provided
+    if (status !== undefined && !VALID_KNOWLEDGE_ENTRY_STATUSES.includes(status)) {
+      return res.status(400).json({
+        error: `Invalid status. Must be one of: ${VALID_KNOWLEDGE_ENTRY_STATUSES.join(', ')}`,
+      });
+    }
+
+    // Merge section updates (allow partial updates)
+    if (sections !== undefined) {
+      entry.sections = {
+        ...entry.sections,
+        ...sections,
+      };
+    }
+
+    if (status !== undefined) entry.status = status;
+    if (crossReferences !== undefined) entry.crossReferences = crossReferences;
+    if (qualityNotes !== undefined) entry.qualityNotes = qualityNotes;
+
+    entry.updatedAt = new Date().toISOString();
+
+    dal.writeData(`knowledge-entries/${id}`, entry);
+    res.json(entry);
+  } catch (error) {
+    console.error('Error updating knowledge entry:', error);
+    res.status(500).json({
+      error: 'Internal server error updating knowledge entry',
+      details: error.message,
+    });
+  }
+});
+
+// DELETE /knowledge-entries/:id - Delete a knowledge entry
+app.delete('/knowledge-entries/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const entry = dal.readData(`knowledge-entries/${id}`);
+
+    if (!entry) {
+      return res.status(404).json({
+        error: `Knowledge entry not found: ${id}`,
+      });
+    }
+
+    // Remove knowledgeEntryId from topic
+    if (entry.topicId) {
+      const topic = dal.readData(`topics/${entry.topicId}`);
+      if (topic && topic.knowledgeEntryId === id) {
+        delete topic.knowledgeEntryId;
+        topic.updatedAt = new Date().toISOString();
+        dal.writeData(`topics/${entry.topicId}`, topic);
+      }
+    }
+
+    // Delete the file
+    const filePath = `./data/knowledge-entries/${id}.json`;
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting knowledge entry:', error);
+    res.status(500).json({
+      error: 'Internal server error deleting knowledge entry',
       details: error.message,
     });
   }

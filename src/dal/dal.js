@@ -1,6 +1,5 @@
 const fs = require('fs');
-
-const fs = require('fs');
+const path = require('path');
 
 const dataDir = './data';
 
@@ -24,6 +23,13 @@ const readData = (filename) => {
 // Function to write data to a JSON file
 const writeData = (filename, data) => {
   const filePath = `${dataDir}/${filename}.json`;
+  const dir = path.dirname(filePath);
+
+  // Create directory if it doesn't exist
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
   try {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
     console.log(`Data written to ${filename}.json`);
