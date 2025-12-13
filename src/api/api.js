@@ -93,6 +93,7 @@ app.get('/dashboard/stats', (req, res) => {
     const personaIds = listDataDir('personas');
     const expertIds = listDataDir('experts');
     const projectIds = listDataDir('projects');
+    const topicIds = listDataDir('topics');
 
     // Count interviews by status
     let scheduledInterviews = 0;
@@ -142,6 +143,24 @@ app.get('/dashboard/stats', (req, res) => {
       }
     }
 
+    // Count topics by status and frequency
+    const topicsByStatus = { pending: 0, 'in-progress': 0, complete: 0 };
+    const topicsByFrequency = { daily: 0, weekly: 0, monthly: 0, quarterly: 0, annual: 0, 'ad-hoc': 0 };
+
+    for (const id of topicIds) {
+      const topic = dal.readData(`topics/${id}`);
+      if (topic) {
+        const status = topic.status || 'pending';
+        if (topicsByStatus[status] !== undefined) {
+          topicsByStatus[status]++;
+        }
+        const frequency = topic.frequency || 'ad-hoc';
+        if (topicsByFrequency[frequency] !== undefined) {
+          topicsByFrequency[frequency]++;
+        }
+      }
+    }
+
     // Count snapshots (transcripts ready)
     let transcriptsReady = 0;
     const snapshotsDir = path.join('./data', 'snapshots');
@@ -167,6 +186,10 @@ app.get('/dashboard/stats', (req, res) => {
       // Projects
       totalProjects: projectIds.length,
       projectsByStatus,
+      // Topics
+      totalTopics: topicIds.length,
+      topicsByStatus,
+      topicsByFrequency,
     });
   } catch (error) {
     console.error('Error getting dashboard stats:', error);
@@ -180,7 +203,7 @@ app.get('/dashboard/stats', (req, res) => {
 // GET /interviews - List all interviews
 app.get('/interviews', (req, res) => {
   try {
-    const { status: filterStatus, expertId, projectId } = req.query;
+    const { status: filterStatus, expertId, projectId, topicId } = req.query;
     const interviewIds = listDataDir('interviews');
     let interviews = [];
 
@@ -209,6 +232,7 @@ app.get('/interviews', (req, res) => {
           // New fields
           expertId: interview.expertId || null,
           projectId: interview.projectId || null,
+          topicId: interview.topicId || null,
           questions: interview.questions || [],
           questionsCompleted: interview.questionsCompleted || [],
         });
@@ -224,6 +248,9 @@ app.get('/interviews', (req, res) => {
     }
     if (projectId) {
       interviews = interviews.filter(i => i.projectId === projectId);
+    }
+    if (topicId) {
+      interviews = interviews.filter(i => i.topicId === topicId);
     }
 
     // Sort by createdAt (newest first)
@@ -268,6 +295,7 @@ app.get('/interviews/:id', (req, res) => {
       // Ensure new fields have defaults for backward compatibility
       expertId: interview.expertId || null,
       projectId: interview.projectId || null,
+      topicId: interview.topicId || null,
       questions: interview.questions || [],
       questionsCompleted: interview.questionsCompleted || [],
     });
@@ -353,12 +381,23 @@ app.get('/personas', (req, res) => {
 
 // POST /interviews/start
 app.post('/interviews/start', (req, res) => {
-  const { role, expertName, industry, projectTitle, description, topics, expertId, projectId, questions } = req.body || {};
+  const { role, expertName, industry, projectTitle, description, topics, expertId, projectId, topicId, questions } = req.body || {};
 
-  if (!role || !VALID_ROLES.includes(role)) {
+  // Role validation is now optional when topicId is provided
+  if (!topicId && (!role || !VALID_ROLES.includes(role))) {
     return res.status(400).json({
-      error: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')}`,
+      error: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')} (or provide topicId)`,
     });
+  }
+
+  // If topicId provided, verify it exists
+  if (topicId) {
+    const topic = dal.readData(`topics/${topicId}`);
+    if (!topic) {
+      return res.status(400).json({
+        error: `Topic not found: ${topicId}`,
+      });
+    }
   }
 
   // Normalize questions array with structured format
@@ -381,7 +420,7 @@ app.post('/interviews/start', (req, res) => {
   const interviewId = Math.random().toString(36).substring(2, 15);
   const interview = {
     id: interviewId,
-    role,
+    role: role || null,
     phase: 'warm-up',
     messages: [],
     questions: normalizedQuestions,
@@ -393,6 +432,7 @@ app.post('/interviews/start', (req, res) => {
     ...(description && { description }),
     ...(expertId && { expertId }),
     ...(projectId && { projectId }),
+    ...(topicId && { topicId }),
   };
 
   dal.writeData(`interviews/${interviewId}`, interview);
@@ -403,7 +443,7 @@ app.post('/interviews/start', (req, res) => {
 app.put('/interviews/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { expertName, industry, phase, status, expertId, projectId, questions, questionsCompleted } = req.body;
+    const { expertName, industry, phase, status, expertId, projectId, topicId, questions, questionsCompleted } = req.body;
 
     // Load existing interview from DAL
     const interview = dal.readData(`interviews/${id}`);
@@ -420,6 +460,7 @@ app.put('/interviews/:id', (req, res) => {
     if (status !== undefined) interview.status = status;
     if (expertId !== undefined) interview.expertId = expertId;
     if (projectId !== undefined) interview.projectId = projectId;
+    if (topicId !== undefined) interview.topicId = topicId;
     if (questions !== undefined) {
       interview.questions = questions.map((q, index) => ({
         id: q.id || Math.random().toString(36).substring(2, 10),
@@ -1270,6 +1311,235 @@ app.delete('/projects/:id', (req, res) => {
     console.error('Error deleting project:', error);
     res.status(500).json({
       error: 'Internal server error deleting project',
+      details: error.message,
+    });
+  }
+});
+
+// ============================================
+// TOPIC ENDPOINTS (Story 7.1)
+// ============================================
+
+const VALID_FREQUENCIES = ['daily', 'weekly', 'monthly', 'quarterly', 'annual', 'ad-hoc'];
+const VALID_TOPIC_STATUSES = ['pending', 'in-progress', 'complete'];
+
+// GET /topics - List all topics
+app.get('/topics', (req, res) => {
+  try {
+    const { status, frequency } = req.query;
+    const topicIds = listDataDir('topics');
+    let topics = [];
+
+    for (const id of topicIds) {
+      const topic = dal.readData(`topics/${id}`);
+      if (topic) {
+        topics.push(topic);
+      }
+    }
+
+    // Apply filters
+    if (status) {
+      topics = topics.filter(t => t.status === status);
+    }
+    if (frequency) {
+      topics = topics.filter(t => t.frequency === frequency);
+    }
+
+    // Sort by order (ascending), then by createdAt
+    topics.sort((a, b) => {
+      if (a.order !== b.order) {
+        return (a.order || 0) - (b.order || 0);
+      }
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+
+    res.json(topics);
+  } catch (error) {
+    console.error('Error listing topics:', error);
+    res.status(500).json({
+      error: 'Internal server error listing topics',
+      details: error.message,
+    });
+  }
+});
+
+// GET /topics/:id - Get a single topic
+app.get('/topics/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const topic = dal.readData(`topics/${id}`);
+
+    if (!topic) {
+      return res.status(404).json({
+        error: `Topic not found: ${id}`,
+      });
+    }
+
+    res.json(topic);
+  } catch (error) {
+    console.error('Error getting topic:', error);
+    res.status(500).json({
+      error: 'Internal server error getting topic',
+      details: error.message,
+    });
+  }
+});
+
+// POST /topics - Create a new topic
+app.post('/topics', (req, res) => {
+  try {
+    const { name, description, frequency, order } = req.body;
+
+    // Validate required fields
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      return res.status(400).json({
+        error: 'Invalid request. Name is required and must be a non-empty string.',
+      });
+    }
+
+    // Validate frequency if provided
+    const topicFrequency = frequency || 'ad-hoc';
+    if (!VALID_FREQUENCIES.includes(topicFrequency)) {
+      return res.status(400).json({
+        error: `Invalid frequency. Must be one of: ${VALID_FREQUENCIES.join(', ')}`,
+      });
+    }
+
+    // Get next order if not provided
+    let topicOrder = order;
+    if (topicOrder === undefined) {
+      const existingTopics = listDataDir('topics');
+      topicOrder = existingTopics.length;
+    }
+
+    const topicId = Math.random().toString(36).substring(2, 15);
+    const topic = {
+      id: topicId,
+      name: name.trim(),
+      description: description || '',
+      frequency: topicFrequency,
+      order: topicOrder,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    dal.writeData(`topics/${topicId}`, topic);
+    res.status(201).json(topic);
+  } catch (error) {
+    console.error('Error creating topic:', error);
+    res.status(500).json({
+      error: 'Internal server error creating topic',
+      details: error.message,
+    });
+  }
+});
+
+// PUT /topics/:id - Update a topic
+app.put('/topics/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, frequency, order, status } = req.body;
+
+    const topic = dal.readData(`topics/${id}`);
+    if (!topic) {
+      return res.status(404).json({
+        error: `Topic not found: ${id}`,
+      });
+    }
+
+    // Validate frequency if provided
+    if (frequency !== undefined && !VALID_FREQUENCIES.includes(frequency)) {
+      return res.status(400).json({
+        error: `Invalid frequency. Must be one of: ${VALID_FREQUENCIES.join(', ')}`,
+      });
+    }
+
+    // Validate status if provided
+    if (status !== undefined && !VALID_TOPIC_STATUSES.includes(status)) {
+      return res.status(400).json({
+        error: `Invalid status. Must be one of: ${VALID_TOPIC_STATUSES.join(', ')}`,
+      });
+    }
+
+    // Merge updates
+    if (name !== undefined) topic.name = name.trim();
+    if (description !== undefined) topic.description = description;
+    if (frequency !== undefined) topic.frequency = frequency;
+    if (order !== undefined) topic.order = order;
+    if (status !== undefined) topic.status = status;
+    topic.updatedAt = new Date().toISOString();
+
+    dal.writeData(`topics/${id}`, topic);
+    res.json(topic);
+  } catch (error) {
+    console.error('Error updating topic:', error);
+    res.status(500).json({
+      error: 'Internal server error updating topic',
+      details: error.message,
+    });
+  }
+});
+
+// DELETE /topics/:id - Delete a topic
+app.delete('/topics/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const topic = dal.readData(`topics/${id}`);
+
+    if (!topic) {
+      return res.status(404).json({
+        error: `Topic not found: ${id}`,
+      });
+    }
+
+    // Delete the file
+    const filePath = `./data/topics/${id}.json`;
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting topic:', error);
+    res.status(500).json({
+      error: 'Internal server error deleting topic',
+      details: error.message,
+    });
+  }
+});
+
+// PUT /topics/reorder - Reorder all topics
+app.put('/topics/reorder', (req, res) => {
+  try {
+    const { topicIds } = req.body;
+
+    // Validate request
+    if (!topicIds || !Array.isArray(topicIds)) {
+      return res.status(400).json({
+        error: 'Invalid request. topicIds must be an array of topic IDs.',
+      });
+    }
+
+    // Update order for each topic
+    const updatedTopics = [];
+    for (let i = 0; i < topicIds.length; i++) {
+      const topicId = topicIds[i];
+      const topic = dal.readData(`topics/${topicId}`);
+
+      if (topic) {
+        topic.order = i;
+        topic.updatedAt = new Date().toISOString();
+        dal.writeData(`topics/${topicId}`, topic);
+        updatedTopics.push(topic);
+      }
+    }
+
+    res.json(updatedTopics);
+  } catch (error) {
+    console.error('Error reordering topics:', error);
+    res.status(500).json({
+      error: 'Internal server error reordering topics',
       details: error.message,
     });
   }

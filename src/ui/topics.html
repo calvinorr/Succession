@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Succession | Topics</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'brand': {
+                            50: '#eef4ff',
+                            100: '#d9e5ff',
+                            200: '#bcd2ff',
+                            300: '#8eb5ff',
+                            400: '#598eff',
+                            500: '#3366ff',
+                            600: '#1a44f5',
+                            700: '#1333e1',
+                            800: '#162bb6',
+                            900: '#182a8f',
+                        },
+                        'surface': {
+                            0: '#ffffff',
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    },
+                    fontFamily: {
+                        'display': ['"DM Serif Display"', 'serif'],
+                        'body': ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glow': '0 0 40px -10px rgba(51, 102, 255, 0.3)',
+                        'card': '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
+                        'card-hover': '0 4px 20px rgba(0,0,0,0.08), 0 0 0 1px rgba(51, 102, 255, 0.1)',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'slide-up': 'slideUp 0.5s ease-out forwards',
+                        'scale-in': 'scaleIn 0.3s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(16px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        scaleIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.95)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .grain::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.02;
+            pointer-events: none;
+            z-index: 0;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .stagger-1 { animation-delay: 0.05s; }
+        .stagger-2 { animation-delay: 0.1s; }
+        .stagger-3 { animation-delay: 0.15s; }
+        .stagger-4 { animation-delay: 0.2s; }
+        .stagger-5 { animation-delay: 0.25s; }
+        .topic-card { transition: all 0.2s ease; cursor: grab; }
+        .topic-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .topic-card.dragging { opacity: 0.5; cursor: grabbing; }
+        .topic-card.drag-over { border-color: #3366ff; }
+    </style>
+</head>
+
+<body class="bg-surface-50 dark:bg-surface-900 font-body text-surface-800 dark:text-surface-100 h-screen flex overflow-hidden grain">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-surface-0 dark:bg-surface-800 border-r border-surface-200/80 dark:border-surface-700 flex flex-col h-full flex-shrink-0 relative z-10">
+        <div class="flex flex-col h-full p-5">
+            <!-- Logo -->
+            <div class="flex items-center gap-3 mb-10 px-1 opacity-0 animate-fade-in">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-glow">
+                    <span class="material-symbols-outlined text-white text-xl">hub</span>
+                </div>
+                <div>
+                    <h1 class="font-display text-xl text-surface-900 dark:text-white tracking-tight">Succession</h1>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-surface-400 font-medium">Expert Systems</p>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex flex-col gap-1 flex-1">
+                <a href="dashboard.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 group transition-all duration-200 opacity-0 animate-slide-up stagger-1">
+                    <span class="material-symbols-outlined text-[20px]">space_dashboard</span>
+                    <span class="text-sm font-medium">Dashboard</span>
+                </a>
+                <a href="topics.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl bg-brand-50 text-brand-600 group transition-all duration-200 opacity-0 animate-slide-up stagger-2">
+                    <span class="material-symbols-outlined filled text-[20px]">topic</span>
+                    <span class="text-sm font-semibold">Topics</span>
+                </a>
+                <a href="index.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 group transition-all duration-200 opacity-0 animate-slide-up stagger-3">
+                    <span class="material-symbols-outlined text-[20px]">mic</span>
+                    <span class="text-sm font-medium">Interviews</span>
+                </a>
+                <a href="personas.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 group transition-all duration-200 opacity-0 animate-slide-up stagger-4">
+                    <span class="material-symbols-outlined text-[20px]">person_search</span>
+                    <span class="text-sm font-medium">Knowledge Base</span>
+                </a>
+
+                <div class="flex-1"></div>
+
+                <a href="#" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 group transition-all duration-200">
+                    <span class="material-symbols-outlined text-[20px]">settings</span>
+                    <span class="text-sm font-medium">Settings</span>
+                </a>
+            </nav>
+
+            <!-- User Profile -->
+            <div class="border-t border-surface-200/80 pt-5 mt-4">
+                <div class="flex items-center gap-3 px-1">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+                        CU
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-surface-800 truncate">Calvin User</p>
+                        <p class="text-xs text-surface-400 truncate">admin@succession.io</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-surface-50 dark:bg-surface-900">
+
+        <!-- Header -->
+        <header class="px-8 py-6 bg-surface-0 dark:bg-surface-800 border-b border-surface-200/60 dark:border-surface-700 flex-shrink-0">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-display text-2xl text-surface-900 dark:text-white">Knowledge Topics</h2>
+                    <p class="text-sm text-surface-500 mt-1">Define the areas of expertise you want to document</p>
+                </div>
+                <button onclick="openModal()" class="flex items-center gap-2 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-semibold text-sm transition-all duration-200 shadow-sm hover:shadow-md">
+                    <span class="material-symbols-outlined text-[18px]">add</span>
+                    New Topic
+                </button>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <div class="flex-1 overflow-auto p-8">
+            <!-- Stats Row -->
+            <div class="grid grid-cols-4 gap-4 mb-8">
+                <div class="bg-surface-0 dark:bg-surface-800 rounded-xl p-4 border border-surface-200/60 dark:border-surface-700">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-brand-500">topic</span>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-surface-900 dark:text-white" id="totalTopics">0</p>
+                            <p class="text-xs text-surface-500">Total Topics</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-surface-0 dark:bg-surface-800 rounded-xl p-4 border border-surface-200/60 dark:border-surface-700">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-amber-500">pending</span>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-surface-900 dark:text-white" id="pendingTopics">0</p>
+                            <p class="text-xs text-surface-500">Pending</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-surface-0 dark:bg-surface-800 rounded-xl p-4 border border-surface-200/60 dark:border-surface-700">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-blue-500">play_circle</span>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-surface-900 dark:text-white" id="inProgressTopics">0</p>
+                            <p class="text-xs text-surface-500">In Progress</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-surface-0 dark:bg-surface-800 rounded-xl p-4 border border-surface-200/60 dark:border-surface-700">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-emerald-500">check_circle</span>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-surface-900 dark:text-white" id="completeTopics">0</p>
+                            <p class="text-xs text-surface-500">Complete</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topics Grid -->
+            <div class="mb-4 flex items-center justify-between">
+                <p class="text-sm text-surface-500">Drag to reorder topics by priority</p>
+                <select id="filterFrequency" onchange="loadTopics()" class="text-sm border border-surface-200 rounded-lg px-3 py-2 bg-surface-0 dark:bg-surface-800 dark:border-surface-700">
+                    <option value="">All Frequencies</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="annual">Annual</option>
+                    <option value="ad-hoc">Ad-hoc</option>
+                </select>
+            </div>
+
+            <div id="topicsContainer" class="grid gap-4">
+                <!-- Topics will be loaded here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden text-center py-16">
+                <div class="w-16 h-16 rounded-full bg-surface-100 flex items-center justify-center mx-auto mb-4">
+                    <span class="material-symbols-outlined text-3xl text-surface-400">topic</span>
+                </div>
+                <h3 class="text-lg font-semibold text-surface-700 mb-2">No topics yet</h3>
+                <p class="text-surface-500 mb-6">Create your first topic to start documenting your expertise</p>
+                <button onclick="openModal()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-semibold text-sm transition-all">
+                    <span class="material-symbols-outlined text-[18px]">add</span>
+                    Create Topic
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-surface-0 dark:bg-surface-800 rounded-2xl shadow-xl w-full max-w-md mx-4 animate-scale-in">
+            <div class="p-6 border-b border-surface-200 dark:border-surface-700">
+                <h3 id="modalTitle" class="text-lg font-semibold text-surface-900 dark:text-white">New Topic</h3>
+            </div>
+            <form id="topicForm" class="p-6 space-y-4">
+                <input type="hidden" id="topicId">
+                <div>
+                    <label class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">Topic Name *</label>
+                    <input type="text" id="topicName" required placeholder="e.g., Month-End Close" class="w-full px-3 py-2.5 border border-surface-200 dark:border-surface-600 rounded-xl bg-surface-0 dark:bg-surface-700 text-surface-900 dark:text-white placeholder-surface-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">Description</label>
+                    <textarea id="topicDescription" rows="3" placeholder="Brief description of what this topic covers..." class="w-full px-3 py-2.5 border border-surface-200 dark:border-surface-600 rounded-xl bg-surface-0 dark:bg-surface-700 text-surface-900 dark:text-white placeholder-surface-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">Frequency</label>
+                    <select id="topicFrequency" class="w-full px-3 py-2.5 border border-surface-200 dark:border-surface-600 rounded-xl bg-surface-0 dark:bg-surface-700 text-surface-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all">
+                        <option value="ad-hoc">Ad-hoc</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="annual">Annual</option>
+                    </select>
+                </div>
+            </form>
+            <div class="p-6 border-t border-surface-200 dark:border-surface-700 flex justify-end gap-3">
+                <button onclick="closeModal()" class="px-4 py-2.5 text-surface-600 hover:text-surface-800 font-medium text-sm transition-colors">Cancel</button>
+                <button onclick="saveTopic()" class="px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-semibold text-sm transition-all">Save Topic</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let topics = [];
+        let draggedItem = null;
+
+        // Load topics on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTopics();
+            loadStats();
+        });
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/dashboard/stats');
+                const data = await res.json();
+                document.getElementById('totalTopics').textContent = data.totalTopics || 0;
+                document.getElementById('pendingTopics').textContent = data.topicsByStatus?.pending || 0;
+                document.getElementById('inProgressTopics').textContent = data.topicsByStatus?.['in-progress'] || 0;
+                document.getElementById('completeTopics').textContent = data.topicsByStatus?.complete || 0;
+            } catch (err) {
+                console.error('Error loading stats:', err);
+            }
+        }
+
+        async function loadTopics() {
+            try {
+                const frequency = document.getElementById('filterFrequency').value;
+                const url = frequency ? `/topics?frequency=${frequency}` : '/topics';
+                const res = await fetch(url);
+                topics = await res.json();
+                renderTopics();
+            } catch (err) {
+                console.error('Error loading topics:', err);
+            }
+        }
+
+        function renderTopics() {
+            const container = document.getElementById('topicsContainer');
+            const emptyState = document.getElementById('emptyState');
+
+            if (topics.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            container.innerHTML = topics.map((topic, index) => `
+                <div class="topic-card bg-surface-0 dark:bg-surface-800 rounded-xl p-5 border border-surface-200/60 dark:border-surface-700 flex items-start gap-4"
+                     draggable="true"
+                     data-id="${topic.id}"
+                     data-index="${index}"
+                     ondragstart="handleDragStart(event)"
+                     ondragover="handleDragOver(event)"
+                     ondrop="handleDrop(event)"
+                     ondragend="handleDragEnd(event)">
+                    <div class="w-8 h-8 rounded-lg bg-surface-100 dark:bg-surface-700 flex items-center justify-center text-surface-400 cursor-grab">
+                        <span class="material-symbols-outlined text-[18px]">drag_indicator</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h4 class="font-semibold text-surface-900 dark:text-white">${escapeHtml(topic.name)}</h4>
+                                <p class="text-sm text-surface-500 mt-1 line-clamp-2">${escapeHtml(topic.description) || 'No description'}</p>
+                            </div>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                ${getStatusBadge(topic.status)}
+                                ${getFrequencyBadge(topic.frequency)}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 mt-4">
+                            <button onclick="startInterview('${topic.id}')" class="text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[16px]">mic</span>
+                                Start Interview
+                            </button>
+                            <button onclick="editTopic('${topic.id}')" class="text-sm text-surface-500 hover:text-surface-700 font-medium flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[16px]">edit</span>
+                                Edit
+                            </button>
+                            <button onclick="deleteTopic('${topic.id}')" class="text-sm text-red-500 hover:text-red-600 font-medium flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[16px]">delete</span>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getStatusBadge(status) {
+            const badges = {
+                'pending': '<span class="px-2.5 py-1 text-xs font-medium rounded-full bg-amber-50 text-amber-600">Pending</span>',
+                'in-progress': '<span class="px-2.5 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-600">In Progress</span>',
+                'complete': '<span class="px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-50 text-emerald-600">Complete</span>',
+            };
+            return badges[status] || badges['pending'];
+        }
+
+        function getFrequencyBadge(frequency) {
+            const colors = {
+                'daily': 'bg-purple-50 text-purple-600',
+                'weekly': 'bg-indigo-50 text-indigo-600',
+                'monthly': 'bg-cyan-50 text-cyan-600',
+                'quarterly': 'bg-teal-50 text-teal-600',
+                'annual': 'bg-orange-50 text-orange-600',
+                'ad-hoc': 'bg-surface-100 text-surface-600',
+            };
+            const color = colors[frequency] || colors['ad-hoc'];
+            return `<span class="px-2.5 py-1 text-xs font-medium rounded-full ${color}">${frequency}</span>`;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Modal functions
+        function openModal(topic = null) {
+            const modal = document.getElementById('modal');
+            const title = document.getElementById('modalTitle');
+
+            if (topic) {
+                title.textContent = 'Edit Topic';
+                document.getElementById('topicId').value = topic.id;
+                document.getElementById('topicName').value = topic.name;
+                document.getElementById('topicDescription').value = topic.description || '';
+                document.getElementById('topicFrequency').value = topic.frequency || 'ad-hoc';
+            } else {
+                title.textContent = 'New Topic';
+                document.getElementById('topicForm').reset();
+                document.getElementById('topicId').value = '';
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.getElementById('topicName').focus();
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        async function saveTopic() {
+            const id = document.getElementById('topicId').value;
+            const name = document.getElementById('topicName').value.trim();
+            const description = document.getElementById('topicDescription').value.trim();
+            const frequency = document.getElementById('topicFrequency').value;
+
+            if (!name) {
+                alert('Topic name is required');
+                return;
+            }
+
+            try {
+                const url = id ? `/topics/${id}` : '/topics';
+                const method = id ? 'PUT' : 'POST';
+
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, frequency })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Failed to save topic');
+                }
+
+                closeModal();
+                loadTopics();
+                loadStats();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        function editTopic(id) {
+            const topic = topics.find(t => t.id === id);
+            if (topic) {
+                openModal(topic);
+            }
+        }
+
+        async function deleteTopic(id) {
+            if (!confirm('Are you sure you want to delete this topic?')) return;
+
+            try {
+                const res = await fetch(`/topics/${id}`, { method: 'DELETE' });
+                if (!res.ok && res.status !== 204) {
+                    throw new Error('Failed to delete topic');
+                }
+                loadTopics();
+                loadStats();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        function startInterview(topicId) {
+            // Navigate to interview page with topic pre-selected
+            window.location.href = `interview-setup.html?topicId=${topicId}`;
+        }
+
+        // Drag and drop handlers
+        function handleDragStart(e) {
+            draggedItem = e.target.closest('.topic-card');
+            draggedItem.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            const card = e.target.closest('.topic-card');
+            if (card && card !== draggedItem) {
+                card.classList.add('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const targetCard = e.target.closest('.topic-card');
+            if (targetCard && targetCard !== draggedItem) {
+                const fromIndex = parseInt(draggedItem.dataset.index);
+                const toIndex = parseInt(targetCard.dataset.index);
+
+                // Reorder in memory
+                const [moved] = topics.splice(fromIndex, 1);
+                topics.splice(toIndex, 0, moved);
+
+                // Save new order to server
+                saveTopicOrder();
+            }
+            document.querySelectorAll('.topic-card').forEach(c => c.classList.remove('drag-over'));
+        }
+
+        function handleDragEnd(e) {
+            draggedItem.classList.remove('dragging');
+            document.querySelectorAll('.topic-card').forEach(c => c.classList.remove('drag-over'));
+            draggedItem = null;
+        }
+
+        async function saveTopicOrder() {
+            try {
+                const topicIds = topics.map(t => t.id);
+                await fetch('/topics/reorder', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topicIds })
+                });
+                renderTopics();
+            } catch (err) {
+                console.error('Error saving topic order:', err);
+            }
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Close modal on backdrop click
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeModal();
+        });
+    </script>
+</body>
+</html>
