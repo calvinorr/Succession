@@ -19,6 +19,7 @@ const SNAPSHOT_INTERVAL = 5; // Create snapshot every N user messages
 
 /**
  * Helper function to create a knowledge snapshot for an interview
+ * Also auto-extracts knowledge points from insights (Story 5.3)
  * @param {string} interviewId - The interview ID
  * @returns {Promise<Object|null>} The created snapshot or null on error
  */
@@ -62,11 +63,142 @@ async function createSnapshot(interviewId) {
     dal.writeData(`snapshots/${interviewId}/${snapshotId}`, snapshot);
     console.log(`Auto-snapshot created: ${snapshotId} for interview ${interviewId}`);
 
+    // Story 5.3: Auto-extract knowledge points from insights
+    const knowledgePointsCreated = await extractKnowledgePointsFromSnapshot(interviewId, interview, extractedData);
+    snapshot.knowledgePointsCreated = knowledgePointsCreated;
+
     return snapshot;
   } catch (error) {
     console.error(`Error creating auto-snapshot for ${interviewId}:`, error.message);
     return null;
   }
+}
+
+/**
+ * Story 5.3: Extract knowledge points from snapshot insights
+ * Maps keyInsights and frameworksMentioned to structured knowledge points
+ * @param {string} interviewId - The interview ID
+ * @param {Object} interview - The interview object
+ * @param {Object} extractedData - Data from note-taker (topicsCovered, keyInsights, etc.)
+ * @returns {number} Number of knowledge points created
+ */
+async function extractKnowledgePointsFromSnapshot(interviewId, interview, extractedData) {
+  const { keyInsights = [], frameworksMentioned = [] } = extractedData;
+  const currentTopicId = interview.currentTopicId || 'general';
+  let created = 0;
+
+  // Get existing knowledge points to avoid duplicates
+  const existingDir = path.join('./data', 'knowledge-points', interviewId);
+  const existingPoints = [];
+  if (fs.existsSync(existingDir)) {
+    const files = fs.readdirSync(existingDir).filter(f => f.endsWith('.json'));
+    for (const file of files) {
+      const point = dal.readData(`knowledge-points/${interviewId}/${file.replace('.json', '')}`);
+      if (point) existingPoints.push(point.content.toLowerCase());
+    }
+  }
+
+  // Helper to check if insight is a duplicate
+  const isDuplicate = (content) => {
+    const normalized = content.toLowerCase().trim();
+    return existingPoints.some(existing =>
+      existing.includes(normalized) || normalized.includes(existing) ||
+      levenshteinSimilarity(existing, normalized) > 0.8
+    );
+  };
+
+  // Simple Levenshtein similarity (0-1 score)
+  const levenshteinSimilarity = (a, b) => {
+    if (a === b) return 1;
+    const longer = a.length > b.length ? a : b;
+    const shorter = a.length > b.length ? b : a;
+    if (longer.length === 0) return 1;
+    // Quick check: if length difference is too big, skip full calculation
+    if ((longer.length - shorter.length) / longer.length > 0.5) return 0;
+    // Check if one contains the other
+    if (longer.includes(shorter)) return shorter.length / longer.length;
+    return 0; // Skip full Levenshtein for performance
+  };
+
+  // Map insights to knowledge areas based on content
+  const categorizeInsight = (insight) => {
+    const lower = insight.toLowerCase();
+    if (lower.includes('pitfall') || lower.includes('mistake') || lower.includes('avoid') || lower.includes('careful') || lower.includes('risk')) {
+      return 'pitfalls';
+    }
+    if (lower.includes('tip') || lower.includes('recommend') || lower.includes('best practice') || lower.includes('always') || lower.includes('never')) {
+      return 'tips';
+    }
+    if (lower.includes('contact') || lower.includes('stakeholder') || lower.includes('team') || lower.includes('department')) {
+      return 'contacts';
+    }
+    if (lower.includes('system') || lower.includes('software') || lower.includes('tool') || lower.includes('template')) {
+      return 'systems';
+    }
+    if (lower.includes('deadline') || lower.includes('date') || lower.includes('when') || lower.includes('schedule') || lower.includes('timeline')) {
+      return 'dates';
+    }
+    if (lower.includes('step') || lower.includes('process') || lower.includes('task') || lower.includes('action')) {
+      return 'tasks';
+    }
+    if (lower.includes('overview') || lower.includes('purpose') || lower.includes('why') || lower.includes('important')) {
+      return 'overview';
+    }
+    return 'tips'; // Default to tips
+  };
+
+  // Create knowledge points from insights
+  for (const insight of keyInsights) {
+    if (!insight || insight.length < 10) continue; // Skip very short insights
+    if (isDuplicate(insight)) continue;
+
+    const area = categorizeInsight(insight);
+    const pointId = 'kp_' + Math.random().toString(36).substring(2, 10);
+    const point = {
+      id: pointId,
+      interviewId,
+      topicId: currentTopicId,
+      area,
+      content: insight.trim(),
+      source: 'snapshot',
+      status: 'draft',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    dal.writeData(`knowledge-points/${interviewId}/${pointId}`, point);
+    existingPoints.push(insight.toLowerCase());
+    created++;
+  }
+
+  // Create knowledge points from frameworks (categorize as 'tasks' or 'overview')
+  for (const framework of frameworksMentioned) {
+    if (!framework || framework.length < 5) continue;
+    if (isDuplicate(framework)) continue;
+
+    const pointId = 'kp_' + Math.random().toString(36).substring(2, 10);
+    const point = {
+      id: pointId,
+      interviewId,
+      topicId: currentTopicId,
+      area: 'tasks', // Frameworks typically relate to processes/tasks
+      content: `Framework: ${framework.trim()}`,
+      source: 'snapshot',
+      status: 'draft',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    dal.writeData(`knowledge-points/${interviewId}/${pointId}`, point);
+    existingPoints.push(framework.toLowerCase());
+    created++;
+  }
+
+  if (created > 0) {
+    console.log(`Story 5.3: Auto-extracted ${created} knowledge points for interview ${interviewId}`);
+  }
+
+  return created;
 }
 
 const VALID_ROLES = [
@@ -201,6 +333,63 @@ app.get('/dashboard/stats', (req, res) => {
     console.error('Error getting dashboard stats:', error);
     res.status(500).json({
       error: 'Internal server error getting dashboard stats',
+      details: error.message,
+    });
+  }
+});
+
+// Story 5.1: GET /roles/:role/checklist - Get topic checklist for a role
+app.get('/roles/:role/checklist', (req, res) => {
+  try {
+    const { role } = req.params;
+
+    // Get the checklist from the interviewer module
+    const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[role];
+
+    if (!checklist) {
+      // Return list of valid roles if role not found
+      const validRoles = Object.keys(interviewer.ROLE_TOPIC_CHECKLISTS);
+      return res.status(404).json({
+        error: `Role not found: ${role}`,
+        validRoles,
+      });
+    }
+
+    // Return the checklist with additional metadata
+    res.json({
+      role,
+      description: checklist.description,
+      topicCount: checklist.topics.length,
+      topics: checklist.topics,
+      processOrientedCount: checklist.topics.filter(t => t.isProcessOriented).length,
+    });
+  } catch (error) {
+    console.error('Error getting role checklist:', error);
+    res.status(500).json({
+      error: 'Internal server error getting role checklist',
+      details: error.message,
+    });
+  }
+});
+
+// GET /roles - List all roles with their checklists
+app.get('/roles', (req, res) => {
+  try {
+    const roles = Object.keys(interviewer.ROLE_TOPIC_CHECKLISTS).map(role => {
+      const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[role];
+      return {
+        role,
+        description: checklist.description,
+        topicCount: checklist.topics.length,
+        processOrientedCount: checklist.topics.filter(t => t.isProcessOriented).length,
+      };
+    });
+
+    res.json(roles);
+  } catch (error) {
+    console.error('Error listing roles:', error);
+    res.status(500).json({
+      error: 'Internal server error listing roles',
       details: error.message,
     });
   }
@@ -578,6 +767,29 @@ app.post('/interviews/start', (req, res) => {
   }
 
   const interviewId = Math.random().toString(36).substring(2, 15);
+
+  // Story 5.2: Initialize topic progress from role checklist
+  let topicProgress = null;
+  let currentTopicId = null;
+  if (role && interviewer.ROLE_TOPIC_CHECKLISTS[role]) {
+    const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[role];
+    topicProgress = {};
+    checklist.topics.forEach((topic, index) => {
+      topicProgress[topic.id] = {
+        status: 'not-started',
+        coveragePercent: 0,
+        validated: false,
+        discussedAt: null,
+        knowledgePoints: []
+      };
+      // Set first topic as current
+      if (index === 0) {
+        currentTopicId = topic.id;
+        topicProgress[topic.id].status = 'in-progress';
+      }
+    });
+  }
+
   const interview = {
     id: interviewId,
     role: role || null,
@@ -585,6 +797,8 @@ app.post('/interviews/start', (req, res) => {
     messages: [],
     questions: normalizedQuestions,
     questionsCompleted: [],
+    topicProgress,
+    currentTopicId,
     createdAt: new Date().toISOString(),
     ...(expertName && { expertName }),
     ...(industry && { industry }),
@@ -805,6 +1019,38 @@ app.post('/interviews/:id/message', async (req, res) => {
         interview.role,
         interview.phase
       );
+
+      // Story 5.2: Add topic context from checklist if available
+      if (interview.role && interview.currentTopicId && interview.topicProgress) {
+        const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[interview.role];
+        if (checklist) {
+          const currentTopic = checklist.topics.find(t => t.id === interview.currentTopicId);
+          if (currentTopic) {
+            // Build topic progress summary
+            const topicsSummary = checklist.topics.map(t => {
+              const progress = interview.topicProgress[t.id];
+              const status = progress?.status || 'not-started';
+              const icon = status === 'complete' ? '✓' : status === 'in-progress' ? '→' : '○';
+              return `${icon} ${t.name}`;
+            }).join('\n');
+
+            // Add topic guidance to system prompt
+            systemPrompt += `\n\n## CURRENT TOPIC FOCUS
+**Current Topic:** ${currentTopic.name}
+**Topic Description:** ${currentTopic.description}
+**Knowledge Areas to Cover:** ${currentTopic.requiredAreas.join(', ')}
+
+## Topic Progress (${checklist.topics.filter(t => interview.topicProgress[t.id]?.status === 'complete').length}/${checklist.topics.length} complete)
+${topicsSummary}
+
+## Topic Guidance
+- Focus your questions on "${currentTopic.name}" until it's well covered
+- When you feel this topic is sufficiently explored, mention that you've "covered ${currentTopic.name} well" and ask if they want to move to the next topic
+- If the expert mentions another topic from the list, acknowledge it and ask if they want to switch focus
+- Don't rigidly stick to one topic if the expert naturally flows to related areas - follow their expertise`;
+          }
+        }
+      }
     }
 
     // Call LLM service with system prompt and full message history
@@ -841,11 +1087,37 @@ app.post('/interviews/:id/message', async (req, res) => {
       });
     }
 
+    // Story 2.4: Detect interview completion signals
+    // Check both user input and interviewer response for completion indicators
+    const completionPatterns = [
+      "thank you so much for sharing",
+      "thank you for sharing",
+      "this has been very helpful",
+      "that concludes",
+      "we've covered a lot",
+      "that's a great place to stop",
+      "shall we finish",
+      "ready to finish",
+      "wrap up",
+      "that covers everything"
+    ];
+    const responseToCheck = assistantContent.toLowerCase();
+    const interviewerSignalingCompletion = completionPatterns.some(p => responseToCheck.includes(p));
+    const completionDetected = isDoneCommand || interviewerSignalingCompletion;
+
+    // If completion detected, trigger a snapshot to capture final state
+    if (completionDetected) {
+      createSnapshot(id).catch(err => {
+        console.error('Completion snapshot failed:', err.message);
+      });
+    }
+
     // Return JSON response with assistant's message and coverage info
     const response = {
       response: assistantContent,
       ...(interview.coverage && { coverage: interview.coverage }),
       ...(isDoneCommand && { topicComplete: true }),
+      ...(completionDetected && { completionDetected: true }),
     };
     res.json(response);
   } catch (error) {
@@ -1000,6 +1272,601 @@ app.get('/interviews/:id/snapshots', (req, res) => {
     console.error('Error retrieving snapshots:', error);
     res.status(500).json({
       error: 'Internal server error retrieving snapshots',
+      details: error.message,
+    });
+  }
+});
+
+// Role-expected topics for coverage comparison (Story 2.4)
+const ROLE_EXPECTED_TOPICS = {
+  "Finance Director": [
+    "Strategic financial planning",
+    "Budget setting and monitoring",
+    "MTFS development",
+    "Reserves strategy",
+    "Political engagement",
+    "Section 151 responsibilities",
+    "Risk management",
+    "Year-end processes",
+    "Audit preparation"
+  ],
+  "Head of AP": [
+    "Invoice processing",
+    "Supplier management",
+    "Payment controls",
+    "Fraud prevention",
+    "BACS/payment runs",
+    "Purchase order matching",
+    "Month-end procedures",
+    "VAT compliance",
+    "System management"
+  ],
+  "Head of AR": [
+    "Debt collection",
+    "Invoicing processes",
+    "Customer relationships",
+    "Write-off procedures",
+    "Aged debt management",
+    "Payment plans",
+    "Legal escalation",
+    "Vulnerable customers",
+    "Bad debt provisioning"
+  ],
+  "Head of Treasury": [
+    "Daily cash flow management",
+    "Investment strategy",
+    "Borrowing/debt management",
+    "Banking relationships",
+    "Money Market Funds",
+    "Regulatory compliance",
+    "Risk management",
+    "Year-end processes",
+    "Treasury systems"
+  ]
+};
+
+// GET /interviews/{id}/summary - Aggregate knowledge captured (Story 2.4)
+app.get('/interviews/:id/summary', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Load interview
+    const interview = dal.readData(`interviews/${id}`);
+    if (!interview) {
+      return res.status(404).json({ error: `Interview not found: ${id}` });
+    }
+
+    // Load all snapshots for this interview
+    const snapshotsDir = path.join('./data', 'snapshots', id);
+    let snapshots = [];
+
+    if (fs.existsSync(snapshotsDir)) {
+      const files = fs.readdirSync(snapshotsDir);
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          const snapshotId = file.replace('.json', '');
+          const snapshot = dal.readData(`snapshots/${id}/${snapshotId}`);
+          if (snapshot) {
+            snapshots.push(snapshot);
+          }
+        }
+      }
+      // Sort by timestamp (newest first)
+      snapshots.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    }
+
+    // Aggregate topics from all snapshots (deduplicated)
+    const topicsSet = new Set();
+    const insightsSet = new Set();
+    const gapsSet = new Set();
+    const frameworksSet = new Set();
+
+    snapshots.forEach(snapshot => {
+      (snapshot.topicsCovered || []).forEach(t => topicsSet.add(t));
+      (snapshot.keyInsights || []).forEach(i => insightsSet.add(i));
+      (snapshot.gaps || []).forEach(g => gapsSet.add(g));
+      (snapshot.frameworksMentioned || []).forEach(f => frameworksSet.add(f));
+    });
+
+    const topicsCovered = Array.from(topicsSet);
+    const keyInsights = Array.from(insightsSet);
+    const gaps = Array.from(gapsSet);
+    const frameworksMentioned = Array.from(frameworksSet);
+
+    // Calculate duration
+    let duration = null;
+    if (interview.messages && interview.messages.length > 1) {
+      const firstTimestamp = new Date(interview.messages[0].timestamp);
+      const lastTimestamp = new Date(interview.messages[interview.messages.length - 1].timestamp);
+      const durationMs = lastTimestamp - firstTimestamp;
+      const minutes = Math.floor(durationMs / 60000);
+      duration = minutes;
+    }
+
+    // Coverage comparison against role-expected topics
+    const role = interview.role;
+    const expectedTopics = ROLE_EXPECTED_TOPICS[role] || [];
+
+    // Simple matching: check if any captured topic contains expected topic keywords
+    const coveredExpected = expectedTopics.filter(expected => {
+      const expectedLower = expected.toLowerCase();
+      return topicsCovered.some(captured => {
+        const capturedLower = captured.toLowerCase();
+        // Check for keyword overlap
+        const expectedWords = expectedLower.split(/\s+/);
+        return expectedWords.some(word => word.length > 3 && capturedLower.includes(word));
+      });
+    });
+
+    const uncoveredExpected = expectedTopics.filter(t => !coveredExpected.includes(t));
+
+    // Calculate coverage depth
+    let coverageDepth = 'shallow';
+    const coveragePercent = expectedTopics.length > 0
+      ? (coveredExpected.length / expectedTopics.length) * 100
+      : 0;
+
+    if (coveragePercent >= 70) coverageDepth = 'deep';
+    else if (coveragePercent >= 40) coverageDepth = 'moderate';
+
+    res.json({
+      interviewId: id,
+      role: interview.role,
+      phase: interview.phase,
+      messageCount: interview.messages?.length || 0,
+      snapshotCount: snapshots.length,
+      duration,
+      topicsCovered,
+      keyInsights,
+      gaps,
+      frameworksMentioned,
+      coverage: {
+        expectedTopics,
+        coveredExpected,
+        uncoveredExpected,
+        percent: Math.round(coveragePercent),
+        depth: coverageDepth
+      },
+      createdAt: interview.createdAt,
+      updatedAt: interview.updatedAt
+    });
+  } catch (error) {
+    console.error('Error generating interview summary:', error);
+    res.status(500).json({
+      error: 'Internal server error generating summary',
+      details: error.message,
+    });
+  }
+});
+
+// Story 5.2: GET /interviews/{id}/topic-progress - Get topic progress for an interview
+app.get('/interviews/:id/topic-progress', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const interview = dal.readData(`interviews/${id}`);
+    if (!interview) {
+      return res.status(404).json({ error: `Interview not found: ${id}` });
+    }
+
+    if (!interview.role || !interview.topicProgress) {
+      return res.status(400).json({
+        error: 'Interview does not have topic tracking enabled',
+        hint: 'Topic tracking is only available for role-based interviews'
+      });
+    }
+
+    // Get the checklist for this role
+    const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[interview.role];
+    if (!checklist) {
+      return res.status(400).json({ error: `No checklist found for role: ${interview.role}` });
+    }
+
+    // Build enriched topic progress with names and descriptions
+    const topics = checklist.topics.map(topic => ({
+      ...topic,
+      progress: interview.topicProgress[topic.id] || {
+        status: 'not-started',
+        coveragePercent: 0,
+        validated: false
+      },
+      isCurrent: interview.currentTopicId === topic.id
+    }));
+
+    // Calculate overall progress
+    const completedCount = topics.filter(t => t.progress.status === 'complete').length;
+    const inProgressCount = topics.filter(t => t.progress.status === 'in-progress').length;
+    const totalPercent = Math.round(
+      topics.reduce((sum, t) => sum + (t.progress.coveragePercent || 0), 0) / topics.length
+    );
+
+    res.json({
+      interviewId: id,
+      role: interview.role,
+      currentTopicId: interview.currentTopicId,
+      topics,
+      summary: {
+        total: topics.length,
+        completed: completedCount,
+        inProgress: inProgressCount,
+        notStarted: topics.length - completedCount - inProgressCount,
+        overallPercent: totalPercent,
+        meetsThreshold: totalPercent >= 70
+      }
+    });
+  } catch (error) {
+    console.error('Error getting topic progress:', error);
+    res.status(500).json({
+      error: 'Internal server error getting topic progress',
+      details: error.message,
+    });
+  }
+});
+
+// Story 5.2: POST /interviews/{id}/topic/{topicId}/select - Set current topic
+app.post('/interviews/:id/topic/:topicId/select', (req, res) => {
+  try {
+    const { id, topicId } = req.params;
+
+    const interview = dal.readData(`interviews/${id}`);
+    if (!interview) {
+      return res.status(404).json({ error: `Interview not found: ${id}` });
+    }
+
+    if (!interview.topicProgress || !interview.topicProgress[topicId]) {
+      return res.status(400).json({ error: `Topic not found in interview: ${topicId}` });
+    }
+
+    // Update current topic
+    const previousTopicId = interview.currentTopicId;
+    interview.currentTopicId = topicId;
+
+    // Mark new topic as in-progress if it was not-started
+    if (interview.topicProgress[topicId].status === 'not-started') {
+      interview.topicProgress[topicId].status = 'in-progress';
+      interview.topicProgress[topicId].discussedAt = new Date().toISOString();
+    }
+
+    interview.updatedAt = new Date().toISOString();
+    dal.writeData(`interviews/${id}`, interview);
+
+    res.json({
+      success: true,
+      previousTopicId,
+      currentTopicId: topicId,
+      topicProgress: interview.topicProgress[topicId]
+    });
+  } catch (error) {
+    console.error('Error selecting topic:', error);
+    res.status(500).json({
+      error: 'Internal server error selecting topic',
+      details: error.message,
+    });
+  }
+});
+
+// Story 5.2: POST /interviews/{id}/topic/{topicId}/complete - Mark topic as complete
+app.post('/interviews/:id/topic/:topicId/complete', (req, res) => {
+  try {
+    const { id, topicId } = req.params;
+
+    const interview = dal.readData(`interviews/${id}`);
+    if (!interview) {
+      return res.status(404).json({ error: `Interview not found: ${id}` });
+    }
+
+    if (!interview.topicProgress || !interview.topicProgress[topicId]) {
+      return res.status(400).json({ error: `Topic not found in interview: ${topicId}` });
+    }
+
+    // Mark topic as complete
+    interview.topicProgress[topicId].status = 'complete';
+    interview.topicProgress[topicId].completedAt = new Date().toISOString();
+
+    // If this was the current topic, move to next uncompleted topic
+    if (interview.currentTopicId === topicId) {
+      const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[interview.role];
+      if (checklist) {
+        const nextTopic = checklist.topics.find(t =>
+          interview.topicProgress[t.id]?.status !== 'complete' && t.id !== topicId
+        );
+        if (nextTopic) {
+          interview.currentTopicId = nextTopic.id;
+          if (interview.topicProgress[nextTopic.id].status === 'not-started') {
+            interview.topicProgress[nextTopic.id].status = 'in-progress';
+            interview.topicProgress[nextTopic.id].discussedAt = new Date().toISOString();
+          }
+        }
+      }
+    }
+
+    interview.updatedAt = new Date().toISOString();
+    dal.writeData(`interviews/${id}`, interview);
+
+    res.json({
+      success: true,
+      topicId,
+      newCurrentTopicId: interview.currentTopicId,
+      topicProgress: interview.topicProgress
+    });
+  } catch (error) {
+    console.error('Error completing topic:', error);
+    res.status(500).json({
+      error: 'Internal server error completing topic',
+      details: error.message,
+    });
+  }
+});
+
+// ============================================
+// KNOWLEDGE POINTS ENDPOINTS (Story 5.3)
+// ============================================
+
+const VALID_KNOWLEDGE_POINT_STATUSES = ['draft', 'reviewed', 'approved'];
+const VALID_KNOWLEDGE_AREAS = ['overview', 'tasks', 'dates', 'contacts', 'systems', 'pitfalls', 'tips', 'related'];
+
+// Helper to list knowledge points for an interview
+function listKnowledgePoints(interviewId) {
+  const dirPath = path.join('./data', 'knowledge-points', interviewId);
+  if (!fs.existsSync(dirPath)) {
+    return [];
+  }
+  return fs.readdirSync(dirPath)
+    .filter(f => f.endsWith('.json'))
+    .map(f => {
+      const id = f.replace('.json', '');
+      return dal.readData(`knowledge-points/${interviewId}/${id}`);
+    })
+    .filter(Boolean);
+}
+
+// GET /interviews/:id/knowledge-points - Get all knowledge points organized by topic
+app.get('/interviews/:id/knowledge-points', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const interview = dal.readData(`interviews/${id}`);
+    if (!interview) {
+      return res.status(404).json({ error: `Interview not found: ${id}` });
+    }
+
+    // Get all knowledge points for this interview
+    const points = listKnowledgePoints(id);
+
+    // Get topic checklist if available
+    const checklist = interview.role ? interviewer.ROLE_TOPIC_CHECKLISTS[interview.role] : null;
+    const topicMap = {};
+
+    // Initialize topics from checklist
+    if (checklist) {
+      for (const topic of checklist.topics) {
+        topicMap[topic.id] = {
+          id: topic.id,
+          name: topic.name,
+          description: topic.description,
+          requiredAreas: topic.requiredAreas || VALID_KNOWLEDGE_AREAS,
+          validationStatus: interview.topicProgress?.[topic.id]?.validationStatus || 'draft',
+          areas: {}
+        };
+        // Initialize all areas
+        for (const area of (topic.requiredAreas || VALID_KNOWLEDGE_AREAS)) {
+          topicMap[topic.id].areas[area] = [];
+        }
+      }
+    }
+
+    // Also handle points for topics not in checklist (e.g., "general")
+    for (const point of points) {
+      const topicId = point.topicId || 'general';
+      if (!topicMap[topicId]) {
+        topicMap[topicId] = {
+          id: topicId,
+          name: topicId === 'general' ? 'General Knowledge' : topicId,
+          description: 'Knowledge points not tied to a specific topic',
+          requiredAreas: VALID_KNOWLEDGE_AREAS,
+          validationStatus: 'draft',
+          areas: {}
+        };
+        for (const area of VALID_KNOWLEDGE_AREAS) {
+          topicMap[topicId].areas[area] = [];
+        }
+      }
+      const area = point.area || 'tips';
+      if (!topicMap[topicId].areas[area]) {
+        topicMap[topicId].areas[area] = [];
+      }
+      topicMap[topicId].areas[area].push(point);
+    }
+
+    // Calculate stats
+    const totalPoints = points.length;
+    const approvedPoints = points.filter(p => p.status === 'approved').length;
+    const reviewedPoints = points.filter(p => p.status === 'reviewed').length;
+
+    res.json({
+      interviewId: id,
+      role: interview.role,
+      topics: Object.values(topicMap),
+      summary: {
+        totalPoints,
+        approvedPoints,
+        reviewedPoints,
+        draftPoints: totalPoints - approvedPoints - reviewedPoints
+      }
+    });
+  } catch (error) {
+    console.error('Error getting knowledge points:', error);
+    res.status(500).json({
+      error: 'Internal server error getting knowledge points',
+      details: error.message,
+    });
+  }
+});
+
+// POST /interviews/:id/knowledge-points - Add a new knowledge point
+app.post('/interviews/:id/knowledge-points', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { topicId, area, content } = req.body;
+
+    const interview = dal.readData(`interviews/${id}`);
+    if (!interview) {
+      return res.status(404).json({ error: `Interview not found: ${id}` });
+    }
+
+    // Validate area
+    if (area && !VALID_KNOWLEDGE_AREAS.includes(area)) {
+      return res.status(400).json({
+        error: `Invalid area. Must be one of: ${VALID_KNOWLEDGE_AREAS.join(', ')}`
+      });
+    }
+
+    // Validate content
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+      return res.status(400).json({ error: 'Content is required and must be a non-empty string' });
+    }
+
+    // Create knowledge point
+    const pointId = 'kp_' + Math.random().toString(36).substring(2, 10);
+    const point = {
+      id: pointId,
+      interviewId: id,
+      topicId: topicId || 'general',
+      area: area || 'tips',
+      content: content.trim(),
+      source: 'manual',
+      status: 'draft',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Store knowledge point
+    dal.writeData(`knowledge-points/${id}/${pointId}`, point);
+
+    res.status(201).json(point);
+  } catch (error) {
+    console.error('Error creating knowledge point:', error);
+    res.status(500).json({
+      error: 'Internal server error creating knowledge point',
+      details: error.message,
+    });
+  }
+});
+
+// PUT /knowledge-points/:interviewId/:pointId - Edit a knowledge point
+app.put('/knowledge-points/:interviewId/:pointId', (req, res) => {
+  try {
+    const { interviewId, pointId } = req.params;
+    const { content, area, status, topicId } = req.body;
+
+    const point = dal.readData(`knowledge-points/${interviewId}/${pointId}`);
+    if (!point) {
+      return res.status(404).json({ error: `Knowledge point not found: ${pointId}` });
+    }
+
+    // Validate area if provided
+    if (area !== undefined && !VALID_KNOWLEDGE_AREAS.includes(area)) {
+      return res.status(400).json({
+        error: `Invalid area. Must be one of: ${VALID_KNOWLEDGE_AREAS.join(', ')}`
+      });
+    }
+
+    // Validate status if provided
+    if (status !== undefined && !VALID_KNOWLEDGE_POINT_STATUSES.includes(status)) {
+      return res.status(400).json({
+        error: `Invalid status. Must be one of: ${VALID_KNOWLEDGE_POINT_STATUSES.join(', ')}`
+      });
+    }
+
+    // Update fields
+    if (content !== undefined) point.content = content.trim();
+    if (area !== undefined) point.area = area;
+    if (status !== undefined) point.status = status;
+    if (topicId !== undefined) point.topicId = topicId;
+    point.updatedAt = new Date().toISOString();
+
+    dal.writeData(`knowledge-points/${interviewId}/${pointId}`, point);
+
+    res.json(point);
+  } catch (error) {
+    console.error('Error updating knowledge point:', error);
+    res.status(500).json({
+      error: 'Internal server error updating knowledge point',
+      details: error.message,
+    });
+  }
+});
+
+// DELETE /knowledge-points/:interviewId/:pointId - Delete a knowledge point
+app.delete('/knowledge-points/:interviewId/:pointId', (req, res) => {
+  try {
+    const { interviewId, pointId } = req.params;
+
+    const point = dal.readData(`knowledge-points/${interviewId}/${pointId}`);
+    if (!point) {
+      return res.status(404).json({ error: `Knowledge point not found: ${pointId}` });
+    }
+
+    // Delete the file
+    const filePath = `./data/knowledge-points/${interviewId}/${pointId}.json`;
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting knowledge point:', error);
+    res.status(500).json({
+      error: 'Internal server error deleting knowledge point',
+      details: error.message,
+    });
+  }
+});
+
+// POST /interviews/:id/topics/:topicId/validate - Mark topic as validated
+app.post('/interviews/:id/topics/:topicId/validate', (req, res) => {
+  try {
+    const { id, topicId } = req.params;
+    const { validationStatus } = req.body;
+
+    const interview = dal.readData(`interviews/${id}`);
+    if (!interview) {
+      return res.status(404).json({ error: `Interview not found: ${id}` });
+    }
+
+    if (!interview.topicProgress) {
+      return res.status(400).json({ error: 'Interview does not have topic tracking enabled' });
+    }
+
+    if (!interview.topicProgress[topicId]) {
+      return res.status(404).json({ error: `Topic not found: ${topicId}` });
+    }
+
+    // Validate status
+    const validStatuses = ['draft', 'reviewed', 'approved'];
+    if (!validStatuses.includes(validationStatus)) {
+      return res.status(400).json({
+        error: `Invalid validationStatus. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    // Update topic validation status
+    interview.topicProgress[topicId].validationStatus = validationStatus;
+    interview.topicProgress[topicId].validatedAt = new Date().toISOString();
+    interview.updatedAt = new Date().toISOString();
+
+    dal.writeData(`interviews/${id}`, interview);
+
+    res.json({
+      success: true,
+      topicId,
+      validationStatus,
+      topicProgress: interview.topicProgress[topicId]
+    });
+  } catch (error) {
+    console.error('Error validating topic:', error);
+    res.status(500).json({
+      error: 'Internal server error validating topic',
       details: error.message,
     });
   }
