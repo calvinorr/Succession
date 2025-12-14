@@ -1872,6 +1872,263 @@ app.post('/interviews/:id/topics/:topicId/validate', (req, res) => {
   }
 });
 
+// ============================================
+// WORKFLOW DIAGRAM ENDPOINTS (Story 5.4)
+// ============================================
+
+const WORKFLOW_SYSTEM_PROMPT = `You are an expert at analyzing interview transcripts and extracting workflow processes.
+
+Your task is to:
+1. Analyze the transcript for process/workflow steps
+2. Identify the key stages, decision points, and outcomes
+3. Generate a Mermaid flowchart diagram
+
+Rules for the Mermaid diagram:
+- Use 'flowchart TD' for top-down flow
+- Use descriptive node IDs (A, B, C, etc.)
+- Use square brackets [text] for regular steps
+- Use curly braces {text} for decision points
+- Use arrows --> for connections
+- Add edge labels with |text| for decision outcomes
+- Keep node text concise (under 40 characters)
+- Include 3-10 steps typically
+- Start with a clear beginning step and end with completion/outcomes
+
+Example output format:
+\`\`\`mermaid
+flowchart TD
+    A[Start: Receive Invoice] --> B[Validate Invoice Details]
+    B --> C{Details Correct?}
+    C -->|Yes| D[Code to GL Account]
+    C -->|No| E[Return to Supplier]
+    D --> F[Submit for Approval]
+    F --> G{Approved?}
+    G -->|Yes| H[Schedule Payment]
+    G -->|No| I[Review with Manager]
+    I --> F
+    H --> J[Complete]
+\`\`\`
+
+Respond with ONLY the mermaid code block, nothing else.`;
+
+// POST /interviews/:id/topics/:topicId/workflow - Generate workflow diagram
+app.post('/interviews/:id/topics/:topicId/workflow', async (req, res) => {
+  try {
+    const { id, topicId } = req.params;
+
+    const interview = dal.readData(`interviews/${id}`);
+    if (!interview) {
+      return res.status(404).json({ error: `Interview not found: ${id}` });
+    }
+
+    // Check if topic exists and is process-oriented
+    const checklist = interview.role ? interviewer.ROLE_TOPIC_CHECKLISTS[interview.role] : null;
+    if (!checklist) {
+      return res.status(400).json({ error: 'Interview role not found in topic checklists' });
+    }
+
+    const topic = checklist.topics.find(t => t.id === topicId);
+    if (!topic) {
+      return res.status(404).json({ error: `Topic not found: ${topicId}` });
+    }
+
+    if (!topic.isProcessOriented) {
+      return res.status(400).json({
+        error: `Topic "${topic.name}" is not process-oriented. Workflow diagrams are only available for process-oriented topics.`
+      });
+    }
+
+    // Extract relevant transcript content
+    // Get messages that might be related to this topic
+    const transcript = interview.messages
+      .map((msg, idx) => {
+        const speaker = msg.role === 'user' ? 'Expert' : 'Interviewer';
+        return `${speaker}: ${msg.content}`;
+      })
+      .join('\n\n');
+
+    // Build prompt for LLM
+    const userPrompt = `Analyze this interview transcript about "${topic.name}" (${topic.description}) and extract the workflow process.
+
+Interview Transcript:
+${transcript}
+
+Generate a Mermaid flowchart diagram showing the key process steps, decision points, and outcomes for ${topic.name}.`;
+
+    // Call LLM to generate workflow
+    const llmMessages = [{ role: 'user', content: userPrompt }];
+    const llmResponse = await llm.chat(WORKFLOW_SYSTEM_PROMPT, llmMessages);
+
+    // Extract mermaid code from response
+    let mermaidCode = llmResponse.trim();
+
+    // Remove markdown code fences if present
+    if (mermaidCode.startsWith('```mermaid')) {
+      mermaidCode = mermaidCode.replace(/^```mermaid\n?/, '').replace(/\n?```$/, '');
+    } else if (mermaidCode.startsWith('```')) {
+      mermaidCode = mermaidCode.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    }
+
+    // Create workflow entry
+    const workflowId = 'wf_' + Math.random().toString(36).substring(2, 10);
+    const workflow = {
+      id: workflowId,
+      interviewId: id,
+      topicId,
+      topicName: topic.name,
+      mermaidCode,
+      status: 'draft',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Store workflow
+    dal.writeData(`workflows/${id}/${workflowId}`, workflow);
+
+    // Update topic progress to indicate workflow exists
+    if (interview.topicProgress && interview.topicProgress[topicId]) {
+      interview.topicProgress[topicId].hasWorkflow = true;
+      interview.topicProgress[topicId].workflowId = workflowId;
+      dal.writeData(`interviews/${id}`, interview);
+    }
+
+    console.log(`Story 5.4: Generated workflow diagram for topic ${topicId} in interview ${id}`);
+
+    res.json(workflow);
+  } catch (error) {
+    console.error('Error generating workflow:', error);
+    res.status(500).json({
+      error: 'Internal server error generating workflow',
+      details: error.message,
+    });
+  }
+});
+
+// GET /interviews/:id/workflows - Get all workflows for an interview
+app.get('/interviews/:id/workflows', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const interview = dal.readData(`interviews/${id}`);
+    if (!interview) {
+      return res.status(404).json({ error: `Interview not found: ${id}` });
+    }
+
+    // List all workflows for this interview
+    const workflowsDir = path.join('./data', 'workflows', id);
+    const workflows = [];
+
+    if (fs.existsSync(workflowsDir)) {
+      const files = fs.readdirSync(workflowsDir).filter(f => f.endsWith('.json'));
+      for (const file of files) {
+        const workflowId = file.replace('.json', '');
+        const workflow = dal.readData(`workflows/${id}/${workflowId}`);
+        if (workflow) {
+          workflows.push(workflow);
+        }
+      }
+    }
+
+    res.json(workflows);
+  } catch (error) {
+    console.error('Error listing workflows:', error);
+    res.status(500).json({
+      error: 'Internal server error listing workflows',
+      details: error.message,
+    });
+  }
+});
+
+// GET /workflows/:interviewId/:workflowId - Get a specific workflow
+app.get('/workflows/:interviewId/:workflowId', (req, res) => {
+  try {
+    const { interviewId, workflowId } = req.params;
+
+    const workflow = dal.readData(`workflows/${interviewId}/${workflowId}`);
+    if (!workflow) {
+      return res.status(404).json({ error: `Workflow not found: ${workflowId}` });
+    }
+
+    res.json(workflow);
+  } catch (error) {
+    console.error('Error getting workflow:', error);
+    res.status(500).json({
+      error: 'Internal server error getting workflow',
+      details: error.message,
+    });
+  }
+});
+
+// PUT /workflows/:interviewId/:workflowId - Update workflow (edit mermaid code or status)
+app.put('/workflows/:interviewId/:workflowId', (req, res) => {
+  try {
+    const { interviewId, workflowId } = req.params;
+    const { mermaidCode, status } = req.body;
+
+    const workflow = dal.readData(`workflows/${interviewId}/${workflowId}`);
+    if (!workflow) {
+      return res.status(404).json({ error: `Workflow not found: ${workflowId}` });
+    }
+
+    // Validate status if provided
+    const validStatuses = ['draft', 'reviewed', 'approved'];
+    if (status !== undefined && !validStatuses.includes(status)) {
+      return res.status(400).json({
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    // Update fields
+    if (mermaidCode !== undefined) workflow.mermaidCode = mermaidCode;
+    if (status !== undefined) workflow.status = status;
+    workflow.updatedAt = new Date().toISOString();
+
+    dal.writeData(`workflows/${interviewId}/${workflowId}`, workflow);
+
+    res.json(workflow);
+  } catch (error) {
+    console.error('Error updating workflow:', error);
+    res.status(500).json({
+      error: 'Internal server error updating workflow',
+      details: error.message,
+    });
+  }
+});
+
+// DELETE /workflows/:interviewId/:workflowId - Delete a workflow
+app.delete('/workflows/:interviewId/:workflowId', (req, res) => {
+  try {
+    const { interviewId, workflowId } = req.params;
+
+    const workflow = dal.readData(`workflows/${interviewId}/${workflowId}`);
+    if (!workflow) {
+      return res.status(404).json({ error: `Workflow not found: ${workflowId}` });
+    }
+
+    // Delete the file
+    const filePath = `./data/workflows/${interviewId}/${workflowId}.json`;
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Update interview topic progress
+    const interview = dal.readData(`interviews/${interviewId}`);
+    if (interview && interview.topicProgress && interview.topicProgress[workflow.topicId]) {
+      interview.topicProgress[workflow.topicId].hasWorkflow = false;
+      delete interview.topicProgress[workflow.topicId].workflowId;
+      dal.writeData(`interviews/${interviewId}`, interview);
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting workflow:', error);
+    res.status(500).json({
+      error: 'Internal server error deleting workflow',
+      details: error.message,
+    });
+  }
+});
+
 // POST /personas/build
 app.post('/personas/build', async (req, res) => {
   try {

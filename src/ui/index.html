@@ -48,6 +48,19 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     </style>
+
+    <!-- Mermaid.js for workflow diagrams (Story 5.4) -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: false, theme: 'base', themeVariables: {
+            primaryColor: '#3366ff',
+            primaryTextColor: '#1e293b',
+            primaryBorderColor: '#bcd2ff',
+            lineColor: '#64748b',
+            secondaryColor: '#f1f5f9',
+            tertiaryColor: '#eef4ff'
+        }});
+    </script>
 </head>
 
 <body class="bg-surface-50 font-body text-surface-800 h-screen flex overflow-hidden">
@@ -407,6 +420,77 @@
                 <button onclick="saveEditedKnowledgePoint()" class="flex-1 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white transition-all font-semibold">
                     Save Changes
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workflow Diagram Modal (Story 5.4) -->
+    <div id="workflow-modal" class="fixed inset-0 bg-surface-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-surface-0 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-surface-200 bg-gradient-to-r from-purple-50 to-surface-50">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-white">schema</span>
+                        </div>
+                        <div>
+                            <h2 id="workflow-modal-title" class="font-display text-xl text-surface-900">Workflow Diagram</h2>
+                            <p id="workflow-modal-subtitle" class="text-sm text-surface-500">Process workflow visualization</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="workflow-status-badge" class="px-2 py-0.5 bg-surface-100 text-surface-500 text-[10px] font-bold rounded-full uppercase">Draft</span>
+                        <button onclick="closeWorkflowModal()" class="p-2 hover:bg-surface-100 rounded-lg transition-colors">
+                            <span class="material-symbols-outlined text-surface-400">close</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="flex-1 overflow-hidden flex">
+                <!-- Diagram View -->
+                <div id="workflow-diagram-container" class="flex-1 p-6 overflow-auto bg-surface-50 flex items-center justify-center">
+                    <div id="workflow-diagram" class="mermaid bg-white p-6 rounded-xl shadow-sm border border-surface-200">
+                        <!-- Mermaid diagram rendered here -->
+                    </div>
+                </div>
+
+                <!-- Code Editor (toggle) -->
+                <div id="workflow-editor-panel" class="w-96 border-l border-surface-200 flex flex-col hidden">
+                    <div class="px-4 py-3 border-b border-surface-200 bg-surface-50">
+                        <h3 class="font-semibold text-sm text-surface-700">Edit Mermaid Code</h3>
+                    </div>
+                    <textarea id="workflow-code-editor" class="flex-1 p-4 font-mono text-sm text-surface-700 bg-surface-0 border-0 focus:outline-none resize-none" placeholder="flowchart TD..."></textarea>
+                    <div class="px-4 py-3 border-t border-surface-200 bg-surface-50">
+                        <button onclick="previewWorkflowCode()" class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold transition-colors">
+                            Preview Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-surface-200 bg-surface-50 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleWorkflowEditor()" id="toggle-editor-btn" class="flex items-center gap-2 px-3 py-2 rounded-lg border border-surface-200 text-surface-600 hover:bg-surface-100 transition-all text-sm font-medium">
+                        <span class="material-symbols-outlined text-[18px]">code</span>
+                        <span id="toggle-editor-text">Edit Code</span>
+                    </button>
+                    <button onclick="regenerateWorkflow()" class="flex items-center gap-2 px-3 py-2 rounded-lg border border-surface-200 text-surface-600 hover:bg-surface-100 transition-all text-sm font-medium">
+                        <span class="material-symbols-outlined text-[18px]">refresh</span>
+                        Regenerate
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="setWorkflowStatus('reviewed')" class="px-4 py-2 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50 transition-all text-sm font-medium">
+                        Mark Reviewed
+                    </button>
+                    <button onclick="setWorkflowStatus('approved')" class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-all text-sm font-semibold">
+                        Approve
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -820,6 +904,7 @@
                                     topic.progress.status === 'in-progress' ? 'text-amber-500' : 'text-surface-300';
                 const bgColor = topic.isCurrent ? 'bg-purple-50 border-purple-200' : 'bg-surface-50 border-surface-200 hover:border-purple-200';
                 const currentBadge = topic.isCurrent ? '<span class="px-2 py-0.5 bg-purple-100 text-purple-600 text-[10px] font-bold rounded-full uppercase">Current</span>' : '';
+                const hasWorkflow = topic.progress.hasWorkflow;
 
                 return `
                     <button onclick="selectTopic('${topic.id}')" class="w-full text-left p-3 rounded-xl border ${bgColor} transition-all group">
@@ -831,7 +916,22 @@
                                     ${currentBadge}
                                 </div>
                                 <p class="text-xs text-surface-500 line-clamp-2">${topic.description}</p>
-                                ${topic.isProcessOriented ? '<span class="inline-flex items-center gap-1 mt-1 text-[10px] text-purple-600"><span class="material-symbols-outlined text-[12px]">account_tree</span>Process</span>' : ''}
+                                <div class="flex items-center gap-2 mt-1">
+                                    ${topic.isProcessOriented ? `
+                                        <span class="inline-flex items-center gap-1 text-[10px] text-purple-600">
+                                            <span class="material-symbols-outlined text-[12px]">account_tree</span>Process
+                                        </span>
+                                        ${hasWorkflow ? `
+                                            <button onclick="event.stopPropagation(); viewWorkflow('${topic.id}', '${topic.progress.workflowId}')" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-600 text-[10px] font-medium hover:bg-emerald-200 transition-colors" title="View workflow diagram">
+                                                <span class="material-symbols-outlined text-[12px]">schema</span>Workflow
+                                            </button>
+                                        ` : `
+                                            <button onclick="event.stopPropagation(); generateWorkflow('${topic.id}')" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 text-[10px] font-medium hover:bg-purple-200 transition-colors" title="Generate workflow diagram">
+                                                <span class="material-symbols-outlined text-[12px]">add_chart</span>Generate
+                                            </button>
+                                        `}
+                                    ` : ''}
+                                </div>
                             </div>
                             ${topic.progress.status !== 'complete' ? `
                                 <button onclick="event.stopPropagation(); completeTopic('${topic.id}')" class="p-1 rounded-lg hover:bg-emerald-100 text-surface-400 hover:text-emerald-600 transition-colors opacity-0 group-hover:opacity-100" title="Mark as complete">
@@ -1299,6 +1399,214 @@
                 loadKnowledgePoints();
             }
         }, 30000);
+
+        // ============================================
+        // Story 5.4: Workflow Diagram Functions
+        // ============================================
+
+        let currentWorkflow = null;
+        let workflowEditorVisible = false;
+
+        // Generate a new workflow diagram for a topic
+        async function generateWorkflow(topicId) {
+            if (!interviewId) return;
+
+            // Show loading state
+            addMessage('System', 'Generating workflow diagram... This may take a moment.');
+
+            try {
+                const res = await fetch(`/interviews/${interviewId}/topics/${topicId}/workflow`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    addMessage('System', `Error: ${error.error}`);
+                    return;
+                }
+
+                const workflow = await res.json();
+                currentWorkflow = workflow;
+
+                // Refresh topic progress to show workflow badge
+                loadTopicProgress();
+
+                // Show the workflow modal
+                showWorkflowModal(workflow);
+
+                addMessage('System', `Workflow diagram generated for "${workflow.topicName}". You can edit and approve it.`);
+            } catch (error) {
+                console.error('Error generating workflow:', error);
+                addMessage('System', 'Failed to generate workflow diagram. Please try again.');
+            }
+        }
+
+        // View an existing workflow
+        async function viewWorkflow(topicId, workflowId) {
+            if (!interviewId || !workflowId) return;
+
+            try {
+                const res = await fetch(`/workflows/${interviewId}/${workflowId}`);
+                if (!res.ok) {
+                    const error = await res.json();
+                    alert(`Error: ${error.error}`);
+                    return;
+                }
+
+                const workflow = await res.json();
+                currentWorkflow = workflow;
+                showWorkflowModal(workflow);
+            } catch (error) {
+                console.error('Error loading workflow:', error);
+                alert('Failed to load workflow diagram.');
+            }
+        }
+
+        // Show the workflow modal
+        async function showWorkflowModal(workflow) {
+            const modal = document.getElementById('workflow-modal');
+            const title = document.getElementById('workflow-modal-title');
+            const subtitle = document.getElementById('workflow-modal-subtitle');
+            const statusBadge = document.getElementById('workflow-status-badge');
+            const diagram = document.getElementById('workflow-diagram');
+            const codeEditor = document.getElementById('workflow-code-editor');
+
+            // Update header
+            title.textContent = workflow.topicName || 'Workflow Diagram';
+            subtitle.textContent = 'Process workflow visualization';
+
+            // Update status badge
+            updateWorkflowStatusBadge(workflow.status);
+
+            // Update code editor
+            codeEditor.value = workflow.mermaidCode;
+
+            // Render Mermaid diagram
+            await renderMermaidDiagram(workflow.mermaidCode);
+
+            // Show modal
+            modal.classList.remove('hidden');
+        }
+
+        // Render Mermaid diagram
+        async function renderMermaidDiagram(code) {
+            const diagram = document.getElementById('workflow-diagram');
+
+            try {
+                // Clear previous content
+                diagram.innerHTML = '';
+
+                // Generate unique ID for this render
+                const id = 'mermaid-' + Math.random().toString(36).substring(2, 8);
+
+                // Use Mermaid to render
+                const { svg } = await mermaid.render(id, code);
+                diagram.innerHTML = svg;
+            } catch (error) {
+                console.error('Mermaid render error:', error);
+                diagram.innerHTML = `
+                    <div class="text-center text-red-500 p-8">
+                        <span class="material-symbols-outlined text-3xl mb-2 block">error</span>
+                        <p class="text-sm font-medium">Failed to render diagram</p>
+                        <p class="text-xs text-red-400 mt-1">${error.message || 'Invalid Mermaid syntax'}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function updateWorkflowStatusBadge(status) {
+            const badge = document.getElementById('workflow-status-badge');
+            badge.textContent = status.toUpperCase();
+
+            badge.className = 'px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ';
+            if (status === 'approved') {
+                badge.className += 'bg-emerald-100 text-emerald-600';
+            } else if (status === 'reviewed') {
+                badge.className += 'bg-amber-100 text-amber-600';
+            } else {
+                badge.className += 'bg-surface-100 text-surface-500';
+            }
+        }
+
+        function closeWorkflowModal() {
+            document.getElementById('workflow-modal').classList.add('hidden');
+            workflowEditorVisible = false;
+            document.getElementById('workflow-editor-panel').classList.add('hidden');
+            document.getElementById('toggle-editor-text').textContent = 'Edit Code';
+        }
+
+        // Toggle code editor panel
+        function toggleWorkflowEditor() {
+            const editorPanel = document.getElementById('workflow-editor-panel');
+            const toggleText = document.getElementById('toggle-editor-text');
+
+            workflowEditorVisible = !workflowEditorVisible;
+
+            if (workflowEditorVisible) {
+                editorPanel.classList.remove('hidden');
+                toggleText.textContent = 'Hide Code';
+            } else {
+                editorPanel.classList.add('hidden');
+                toggleText.textContent = 'Edit Code';
+            }
+        }
+
+        // Preview edited code
+        async function previewWorkflowCode() {
+            const code = document.getElementById('workflow-code-editor').value;
+            await renderMermaidDiagram(code);
+
+            // Update current workflow object (but don't save yet)
+            if (currentWorkflow) {
+                currentWorkflow.mermaidCode = code;
+            }
+        }
+
+        // Regenerate workflow
+        async function regenerateWorkflow() {
+            if (!currentWorkflow || !interviewId) return;
+
+            if (!confirm('This will regenerate the workflow diagram and replace the current one. Continue?')) {
+                return;
+            }
+
+            closeWorkflowModal();
+            await generateWorkflow(currentWorkflow.topicId);
+        }
+
+        // Set workflow status
+        async function setWorkflowStatus(status) {
+            if (!currentWorkflow || !interviewId) return;
+
+            try {
+                const res = await fetch(`/workflows/${interviewId}/${currentWorkflow.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mermaidCode: currentWorkflow.mermaidCode,
+                        status
+                    })
+                });
+
+                if (res.ok) {
+                    const updated = await res.json();
+                    currentWorkflow = updated;
+                    updateWorkflowStatusBadge(status);
+
+                    if (status === 'approved') {
+                        addMessage('System', `Workflow for "${currentWorkflow.topicName}" has been approved.`);
+                    } else {
+                        addMessage('System', `Workflow for "${currentWorkflow.topicName}" marked as ${status}.`);
+                    }
+
+                    loadTopicProgress();
+                }
+            } catch (error) {
+                console.error('Error updating workflow status:', error);
+                alert('Failed to update workflow status.');
+            }
+        }
     </script>
 </body>
 </html>
