@@ -2050,6 +2050,78 @@ app.put('/personas/:id', (req, res) => {
   }
 });
 
+// DELETE /personas/:id - Delete a persona
+app.delete('/personas/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const persona = dal.readData(`personas/${id}`);
+    if (!persona) {
+      return res.status(404).json({
+        error: `Persona not found: ${id}`,
+      });
+    }
+
+    // Delete the file
+    const filePath = `./data/personas/${id}.json`;
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log(`Deleted persona: ${id} (${persona.role})`);
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting persona:', error);
+    res.status(500).json({
+      error: 'Internal server error deleting persona',
+      details: error.message,
+    });
+  }
+});
+
+// DELETE /personas - Bulk delete personas
+app.delete('/personas', (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        error: 'ids array is required in request body',
+      });
+    }
+
+    const deleted = [];
+    const notFound = [];
+
+    for (const id of ids) {
+      const persona = dal.readData(`personas/${id}`);
+      if (!persona) {
+        notFound.push(id);
+        continue;
+      }
+
+      const filePath = `./data/personas/${id}.json`;
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        deleted.push(id);
+        console.log(`Bulk deleted persona: ${id}`);
+      }
+    }
+
+    res.json({
+      deleted,
+      notFound,
+      message: `Deleted ${deleted.length} persona(s)`,
+    });
+  } catch (error) {
+    console.error('Error bulk deleting personas:', error);
+    res.status(500).json({
+      error: 'Internal server error bulk deleting personas',
+      details: error.message,
+    });
+  }
+});
+
 // POST /personas/{id}/view - Record a view timestamp
 app.post('/personas/:id/view', (req, res) => {
   try {

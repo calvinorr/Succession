@@ -124,10 +124,14 @@
                     <span class="material-symbols-outlined text-[20px]">menu_book</span>
                     <span class="text-sm font-medium">Knowledge Base</span>
                 </a>
+                <a href="qa.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 transition-all">
+                    <span class="material-symbols-outlined text-[20px]">verified</span>
+                    <span class="text-sm font-medium">QA Testing</span>
+                </a>
                 <div class="flex-1"></div>
-                <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 transition-all">
-                    <span class="material-symbols-outlined text-[20px]">settings</span>
-                    <span class="text-sm font-medium">Settings</span>
+                <a href="admin.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 transition-all">
+                    <span class="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+                    <span class="text-sm font-medium">Admin</span>
                 </a>
             </nav>
 
@@ -476,6 +480,9 @@
                                 <button onclick="toggleFavorite('${persona.id}', event)" class="p-1.5 rounded-lg hover:bg-surface-100 transition-colors ${isFavorite ? 'text-amber-500' : 'text-surface-300 hover:text-amber-400'}">
                                     <span class="material-symbols-outlined ${isFavorite ? 'filled' : ''} text-[20px]">star</span>
                                 </button>
+                                <button onclick="deletePersona('${persona.id}', event)" class="p-1.5 rounded-lg hover:bg-red-50 text-surface-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100" title="Delete">
+                                    <span class="material-symbols-outlined text-[20px]">delete</span>
+                                </button>
                                 <span class="text-xs text-surface-400">${new Date(persona.createdAt).toLocaleDateString()}</span>
                             </div>
                         </div>
@@ -499,6 +506,9 @@
                                 <div class="flex items-center gap-2">
                                     <button onclick="toggleFavorite('${persona.id}', event)" class="p-1 rounded-lg hover:bg-surface-100 transition-colors ${isFavorite ? 'text-amber-500' : 'text-surface-300 hover:text-amber-400'}">
                                         <span class="material-symbols-outlined ${isFavorite ? 'filled' : ''} text-[20px]">star</span>
+                                    </button>
+                                    <button onclick="deletePersona('${persona.id}', event)" class="p-1 rounded-lg hover:bg-red-50 text-surface-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100" title="Delete">
+                                        <span class="material-symbols-outlined text-[20px]">delete</span>
                                     </button>
                                     <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide border ${statusClass}">
                                         ${persona.status || 'draft'}
@@ -710,6 +720,48 @@
             }
             localStorage.setItem('persona-favorites', JSON.stringify(favorites));
             renderPersonas(filteredPersonas);
+        }
+
+        // Delete persona
+        async function deletePersona(personaId, event) {
+            event.stopPropagation();
+
+            const persona = allPersonas.find(p => p.id === personaId);
+            if (!persona) return;
+
+            const confirmMsg = `Are you sure you want to delete "${persona.name || persona.role}"?\n\nThis action cannot be undone.`;
+            if (!confirm(confirmMsg)) return;
+
+            try {
+                const res = await fetch(`/personas/${personaId}`, {
+                    method: 'DELETE'
+                });
+
+                if (res.ok) {
+                    // Remove from local arrays
+                    allPersonas = allPersonas.filter(p => p.id !== personaId);
+                    filteredPersonas = filteredPersonas.filter(p => p.id !== personaId);
+                    favorites = favorites.filter(id => id !== personaId);
+                    recentlyViewed = recentlyViewed.filter(id => id !== personaId);
+
+                    // Update localStorage
+                    localStorage.setItem('persona-favorites', JSON.stringify(favorites));
+                    localStorage.setItem('persona-recent', JSON.stringify(recentlyViewed));
+
+                    // Re-render
+                    updateResultsCount();
+                    renderPersonas(filteredPersonas);
+
+                    // Close modal if open
+                    closeModal();
+                } else {
+                    const error = await res.json();
+                    alert(`Failed to delete persona: ${error.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error deleting persona:', error);
+                alert('Failed to delete persona. Please try again.');
+            }
         }
 
         // Load on ready
