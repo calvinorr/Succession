@@ -380,7 +380,7 @@ router.get('/roles', (req, res) => {
 // GET /interviews - List all interviews
 router.get('/interviews', (req, res) => {
   try {
-    const { status: filterStatus, expertId, projectId, topicId, role, sortBy, sortOrder, page, limit } = req.query;
+    const { status: filterStatus, expertId, topicId, role, sortBy, sortOrder, page, limit } = req.query;
     const interviewIds = listDataDir('interviews');
     let interviews = [];
 
@@ -409,7 +409,6 @@ router.get('/interviews', (req, res) => {
           industry: interview.industry || 'Finance & Banking',
           // New fields
           expertId: interview.expertId || null,
-          projectId: interview.projectId || null,
           topicId: interview.topicId || null,
           questions: interview.questions || [],
           questionsCompleted: interview.questionsCompleted || [],
@@ -423,9 +422,6 @@ router.get('/interviews', (req, res) => {
     }
     if (expertId) {
       interviews = interviews.filter(i => i.expertId === expertId);
-    }
-    if (projectId) {
-      interviews = interviews.filter(i => i.projectId === projectId);
     }
     if (topicId) {
       interviews = interviews.filter(i => i.topicId === topicId);
@@ -518,7 +514,6 @@ router.get('/interviews/:id', (req, res) => {
       industry: interview.industry || 'Finance & Banking',
       // Ensure new fields have defaults for backward compatibility
       expertId: interview.expertId || null,
-      projectId: interview.projectId || null,
       topicId: interview.topicId || null,
       questions: interview.questions || [],
       questionsCompleted: interview.questionsCompleted || [],
@@ -759,7 +754,7 @@ router.get('/personas', (req, res) => {
 
 // POST /interviews/start
 router.post('/interviews/start', (req, res) => {
-  const { role, expertName, industry, projectTitle, description, topics, expertId, projectId, topicId, questions } = req.body || {};
+  const { role, expertName, industry, description, topics, expertId, topicId, questions } = req.body || {};
 
   // Role validation is now optional when topicId is provided
   if (!topicId && (!role || !VALID_ROLES.includes(role))) {
@@ -831,10 +826,8 @@ router.post('/interviews/start', (req, res) => {
     createdAt: new Date().toISOString(),
     ...(expertName && { expertName }),
     ...(industry && { industry }),
-    ...(projectTitle && { projectTitle }),
     ...(description && { description }),
     ...(expertId && { expertId }),
-    ...(projectId && { projectId }),
     ...(topicId && { topicId }),
   };
 
@@ -846,7 +839,7 @@ router.post('/interviews/start', (req, res) => {
 router.put('/interviews/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { expertName, industry, phase, status, expertId, projectId, topicId, questions, questionsCompleted } = req.body;
+    const { expertName, industry, phase, status, expertId, topicId, questions, questionsCompleted } = req.body;
 
     // Load existing interview from DAL
     const interview = dal.readData(`interviews/${id}`);
@@ -862,7 +855,6 @@ router.put('/interviews/:id', (req, res) => {
     if (phase !== undefined) interview.phase = phase;
     if (status !== undefined) interview.status = status;
     if (expertId !== undefined) interview.expertId = expertId;
-    if (projectId !== undefined) interview.projectId = projectId;
     if (topicId !== undefined) interview.topicId = topicId;
     if (questions !== undefined) {
       interview.questions = questions.map((q, index) => ({
