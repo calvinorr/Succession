@@ -38,7 +38,32 @@ const writeData = (filename, data) => {
   }
 };
 
+// Function to list IDs in a data subdirectory
+const listData = (subdir) => {
+  const dirPath = path.join(dataDir, subdir);
+  if (!fs.existsSync(dirPath)) {
+    return [];
+  }
+  return fs.readdirSync(dirPath)
+    .filter(f => f.endsWith('.json'))
+    .map(f => f.replace('.json', ''));
+};
+
+// Function to find data by a field value
+const findByField = (subdir, field, value) => {
+  const ids = listData(subdir);
+  for (const id of ids) {
+    const data = readData(`${subdir}/${id}`);
+    if (data && data[field] === value) {
+      return data;
+    }
+  }
+  return null;
+};
+
 module.exports = {
   readData,
-  writeData
+  writeData,
+  listData,
+  findByField
 };

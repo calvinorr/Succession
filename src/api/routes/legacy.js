@@ -1,18 +1,17 @@
-require('dotenv').config();
+/**
+ * Legacy routes - contains all pre-refactor endpoints
+ * These will be gradually migrated to proper route modules
+ */
 const express = require('express');
-const app = express();
-const port = 3000;
-const dal = require('../dal/dal');
-const llm = require('../services/llm');
-const interviewer = require('../agents/interviewer');
-const noteTaker = require('../agents/note-taker');
-const personaBuilder = require('../agents/persona-builder');
-const knowledgeBuilder = require('../agents/knowledge-builder');
+const router = express.Router();
+const dal = require('../../dal/dal');
+const llm = require('../../services/llm');
+const interviewer = require('../../agents/interviewer');
+const noteTaker = require('../../agents/note-taker');
+const personaBuilder = require('../../agents/persona-builder');
+const knowledgeBuilder = require('../../agents/knowledge-builder');
 const fs = require('fs');
 const path = require('path');
-
-app.use(express.json());
-app.use(express.static('src/ui'));
 
 // Configuration for auto-snapshot
 const SNAPSHOT_INTERVAL = 5; // Create snapshot every N user messages
@@ -220,7 +219,7 @@ function listDataDir(subdir) {
 }
 
 // GET /dashboard/stats
-app.get('/dashboard/stats', (req, res) => {
+router.get('/dashboard/stats', (req, res) => {
   try {
     const interviewIds = listDataDir('interviews');
     const personaIds = listDataDir('personas');
@@ -339,7 +338,7 @@ app.get('/dashboard/stats', (req, res) => {
 });
 
 // Story 5.1: GET /roles/:role/checklist - Get topic checklist for a role
-app.get('/roles/:role/checklist', (req, res) => {
+router.get('/roles/:role/checklist', (req, res) => {
   try {
     const { role } = req.params;
 
@@ -373,7 +372,7 @@ app.get('/roles/:role/checklist', (req, res) => {
 });
 
 // GET /roles - List all roles with their checklists
-app.get('/roles', (req, res) => {
+router.get('/roles', (req, res) => {
   try {
     const roles = Object.keys(interviewer.ROLE_TOPIC_CHECKLISTS).map(role => {
       const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[role];
@@ -396,7 +395,7 @@ app.get('/roles', (req, res) => {
 });
 
 // GET /interviews - List all interviews
-app.get('/interviews', (req, res) => {
+router.get('/interviews', (req, res) => {
   try {
     const { status: filterStatus, expertId, projectId, topicId, role, sortBy, sortOrder, page, limit } = req.query;
     const interviewIds = listDataDir('interviews');
@@ -509,7 +508,7 @@ app.get('/interviews', (req, res) => {
 });
 
 // GET /interviews/{id} - Get a single interview
-app.get('/interviews/:id', (req, res) => {
+router.get('/interviews/:id', (req, res) => {
   try {
     const { id } = req.params;
     const interview = dal.readData(`interviews/${id}`);
@@ -545,6 +544,53 @@ app.get('/interviews/:id', (req, res) => {
     console.error('Error getting interview:', error);
     res.status(500).json({
       error: 'Internal server error getting interview',
+      details: error.message,
+    });
+  }
+});
+
+// DELETE /interviews/:id - Delete an interview and its related data
+router.delete('/interviews/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const interview = dal.readData(`interviews/${id}`);
+
+    if (!interview) {
+      return res.status(404).json({
+        error: `Interview not found: ${id}`,
+      });
+    }
+
+    // Delete interview file
+    const interviewPath = `./data/interviews/${id}.json`;
+    if (fs.existsSync(interviewPath)) {
+      fs.unlinkSync(interviewPath);
+    }
+
+    // Delete related snapshots
+    const snapshotsDir = `./data/snapshots/${id}`;
+    if (fs.existsSync(snapshotsDir)) {
+      fs.rmSync(snapshotsDir, { recursive: true });
+    }
+
+    // Delete related knowledge points
+    const kpDir = `./data/knowledge-points/${id}`;
+    if (fs.existsSync(kpDir)) {
+      fs.rmSync(kpDir, { recursive: true });
+    }
+
+    // Delete related workflows
+    const workflowsDir = `./data/workflows/${id}`;
+    if (fs.existsSync(workflowsDir)) {
+      fs.rmSync(workflowsDir, { recursive: true });
+    }
+
+    console.log(`Deleted interview ${id} and related data`);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting interview:', error);
+    res.status(500).json({
+      error: 'Internal server error deleting interview',
       details: error.message,
     });
   }
@@ -601,7 +647,7 @@ function normalizeExpertise(expertise) {
 }
 
 // GET /personas - List all personas
-app.get('/personas', (req, res) => {
+router.get('/personas', (req, res) => {
   try {
     const { status: filterStatus, role: filterRole, industry, isFavorite, latestValidated, sortBy, sortOrder, page, limit } = req.query;
     const personaIds = listDataDir('personas');
@@ -729,7 +775,7 @@ app.get('/personas', (req, res) => {
 });
 
 // POST /interviews/start
-app.post('/interviews/start', (req, res) => {
+router.post('/interviews/start', (req, res) => {
   const { role, expertName, industry, projectTitle, description, topics, expertId, projectId, topicId, questions } = req.body || {};
 
   // Role validation is now optional when topicId is provided
@@ -814,7 +860,7 @@ app.post('/interviews/start', (req, res) => {
 });
 
 // PUT /interviews/{id} - Update an interview
-app.put('/interviews/:id', (req, res) => {
+router.put('/interviews/:id', (req, res) => {
   try {
     const { id } = req.params;
     const { expertName, industry, phase, status, expertId, projectId, topicId, questions, questionsCompleted } = req.body;
@@ -862,7 +908,7 @@ app.put('/interviews/:id', (req, res) => {
 });
 
 // POST /interviews/{id}/complete - Mark interview as complete
-app.post('/interviews/:id/complete', async (req, res) => {
+router.post('/interviews/:id/complete', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -898,7 +944,7 @@ app.post('/interviews/:id/complete', async (req, res) => {
 });
 
 // GET /interviews/{id}/transcript - Get formatted transcript
-app.get('/interviews/:id/transcript', (req, res) => {
+router.get('/interviews/:id/transcript', (req, res) => {
   try {
     const { id } = req.params;
 
@@ -946,7 +992,7 @@ app.get('/interviews/:id/transcript', (req, res) => {
 });
 
 // POST /interviews/{id}/message
-app.post('/interviews/:id/message', async (req, res) => {
+router.post('/interviews/:id/message', async (req, res) => {
   try {
     const { id } = req.params;
     const { message } = req.body;
@@ -1130,7 +1176,7 @@ ${topicsSummary}
 });
 
 // GET /interviews/{id}/coverage - Get knowledge area coverage for an interview
-app.get('/interviews/:id/coverage', (req, res) => {
+router.get('/interviews/:id/coverage', (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1179,7 +1225,7 @@ app.get('/interviews/:id/coverage', (req, res) => {
 });
 
 // POST /interviews/{id}/note-snapshot
-app.post('/interviews/:id/note-snapshot', async (req, res) => {
+router.post('/interviews/:id/note-snapshot', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1239,7 +1285,7 @@ app.post('/interviews/:id/note-snapshot', async (req, res) => {
 });
 
 // GET /interviews/{id}/snapshots
-app.get('/interviews/:id/snapshots', (req, res) => {
+router.get('/interviews/:id/snapshots', (req, res) => {
   try {
     const { id } = req.params;
     const snapshotsDir = path.join('./data', 'snapshots', id);
@@ -1326,7 +1372,7 @@ const ROLE_EXPECTED_TOPICS = {
 };
 
 // GET /interviews/{id}/summary - Aggregate knowledge captured (Story 2.4)
-app.get('/interviews/:id/summary', (req, res) => {
+router.get('/interviews/:id/summary', (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1439,8 +1485,60 @@ app.get('/interviews/:id/summary', (req, res) => {
   }
 });
 
+// POST /interviews/{id}/initialize-topics - Initialize topic tracking for an existing interview
+router.post('/interviews/:id/initialize-topics', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const interview = dal.readData(`interviews/${id}`);
+    if (!interview) {
+      return res.status(404).json({ error: `Interview not found: ${id}` });
+    }
+
+    if (!interview.role) {
+      return res.status(400).json({ error: 'Interview has no role assigned' });
+    }
+
+    // Get the checklist for this role
+    const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[interview.role];
+    if (!checklist) {
+      return res.status(400).json({ error: `No checklist found for role: ${interview.role}` });
+    }
+
+    // Initialize topicProgress if not exists
+    if (!interview.topicProgress) {
+      interview.topicProgress = {};
+      for (const topic of checklist.topics) {
+        interview.topicProgress[topic.id] = {
+          status: 'not-started',
+          coveragePercent: 0,
+          validated: false,
+          hasWorkflow: false
+        };
+      }
+      // Set first topic as current
+      interview.currentTopicId = checklist.topics[0]?.id || null;
+    }
+
+    interview.updatedAt = new Date().toISOString();
+    dal.writeData(`interviews/${id}`, interview);
+
+    res.json({
+      success: true,
+      message: `Initialized ${checklist.topics.length} topics for ${interview.role}`,
+      topicCount: checklist.topics.length
+    });
+  } catch (error) {
+    console.error('Error initializing topics:', error);
+    res.status(500).json({
+      error: 'Internal server error initializing topics',
+      details: error.message,
+    });
+  }
+});
+
 // Story 5.2: GET /interviews/{id}/topic-progress - Get topic progress for an interview
-app.get('/interviews/:id/topic-progress', (req, res) => {
+router.get('/interviews/:id/topic-progress', (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1504,7 +1602,7 @@ app.get('/interviews/:id/topic-progress', (req, res) => {
 });
 
 // Story 5.2: POST /interviews/{id}/topic/{topicId}/select - Set current topic
-app.post('/interviews/:id/topic/:topicId/select', (req, res) => {
+router.post('/interviews/:id/topic/:topicId/select', (req, res) => {
   try {
     const { id, topicId } = req.params;
 
@@ -1546,7 +1644,7 @@ app.post('/interviews/:id/topic/:topicId/select', (req, res) => {
 });
 
 // Story 5.2: POST /interviews/{id}/topic/{topicId}/complete - Mark topic as complete
-app.post('/interviews/:id/topic/:topicId/complete', (req, res) => {
+router.post('/interviews/:id/topic/:topicId/complete', (req, res) => {
   try {
     const { id, topicId } = req.params;
 
@@ -1621,7 +1719,7 @@ function listKnowledgePoints(interviewId) {
 }
 
 // GET /interviews/:id/knowledge-points - Get all knowledge points organized by topic
-app.get('/interviews/:id/knowledge-points', (req, res) => {
+router.get('/interviews/:id/knowledge-points', (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1704,7 +1802,7 @@ app.get('/interviews/:id/knowledge-points', (req, res) => {
 });
 
 // POST /interviews/:id/knowledge-points - Add a new knowledge point
-app.post('/interviews/:id/knowledge-points', (req, res) => {
+router.post('/interviews/:id/knowledge-points', (req, res) => {
   try {
     const { id } = req.params;
     const { topicId, area, content } = req.body;
@@ -1754,7 +1852,7 @@ app.post('/interviews/:id/knowledge-points', (req, res) => {
 });
 
 // PUT /knowledge-points/:interviewId/:pointId - Edit a knowledge point
-app.put('/knowledge-points/:interviewId/:pointId', (req, res) => {
+router.put('/knowledge-points/:interviewId/:pointId', (req, res) => {
   try {
     const { interviewId, pointId } = req.params;
     const { content, area, status, topicId } = req.body;
@@ -1798,7 +1896,7 @@ app.put('/knowledge-points/:interviewId/:pointId', (req, res) => {
 });
 
 // DELETE /knowledge-points/:interviewId/:pointId - Delete a knowledge point
-app.delete('/knowledge-points/:interviewId/:pointId', (req, res) => {
+router.delete('/knowledge-points/:interviewId/:pointId', (req, res) => {
   try {
     const { interviewId, pointId } = req.params;
 
@@ -1824,7 +1922,7 @@ app.delete('/knowledge-points/:interviewId/:pointId', (req, res) => {
 });
 
 // POST /interviews/:id/topics/:topicId/validate - Mark topic as validated
-app.post('/interviews/:id/topics/:topicId/validate', (req, res) => {
+router.post('/interviews/:id/topics/:topicId/validate', (req, res) => {
   try {
     const { id, topicId } = req.params;
     const { validationStatus } = req.body;
@@ -1912,7 +2010,7 @@ flowchart TD
 Respond with ONLY the mermaid code block, nothing else.`;
 
 // POST /interviews/:id/topics/:topicId/workflow - Generate workflow diagram
-app.post('/interviews/:id/topics/:topicId/workflow', async (req, res) => {
+router.post('/interviews/:id/topics/:topicId/workflow', async (req, res) => {
   try {
     const { id, topicId } = req.params;
 
@@ -1969,6 +2067,21 @@ Generate a Mermaid flowchart diagram showing the key process steps, decision poi
       mermaidCode = mermaidCode.replace(/^```\n?/, '').replace(/\n?```$/, '');
     }
 
+    // Sanitize mermaid code - wrap node text containing special chars in quotes
+    // Match [text] and {text} patterns and quote if they contain ( ) or other special chars
+    mermaidCode = mermaidCode.replace(/\[([^\]]+)\]/g, (match, text) => {
+      if (/[(){}]/.test(text) && !text.startsWith('"')) {
+        return `["${text.replace(/"/g, "'")}"]`;
+      }
+      return match;
+    });
+    mermaidCode = mermaidCode.replace(/\{([^}]+)\}/g, (match, text) => {
+      if (/[()[\]]/.test(text) && !text.startsWith('"')) {
+        return `{"${text.replace(/"/g, "'")}"}`;
+      }
+      return match;
+    });
+
     // Create workflow entry
     const workflowId = 'wf_' + Math.random().toString(36).substring(2, 10);
     const workflow = {
@@ -2005,7 +2118,7 @@ Generate a Mermaid flowchart diagram showing the key process steps, decision poi
 });
 
 // GET /interviews/:id/workflows - Get all workflows for an interview
-app.get('/interviews/:id/workflows', (req, res) => {
+router.get('/interviews/:id/workflows', (req, res) => {
   try {
     const { id } = req.params;
 
@@ -2040,7 +2153,7 @@ app.get('/interviews/:id/workflows', (req, res) => {
 });
 
 // GET /workflows/:interviewId/:workflowId - Get a specific workflow
-app.get('/workflows/:interviewId/:workflowId', (req, res) => {
+router.get('/workflows/:interviewId/:workflowId', (req, res) => {
   try {
     const { interviewId, workflowId } = req.params;
 
@@ -2060,7 +2173,7 @@ app.get('/workflows/:interviewId/:workflowId', (req, res) => {
 });
 
 // PUT /workflows/:interviewId/:workflowId - Update workflow (edit mermaid code or status)
-app.put('/workflows/:interviewId/:workflowId', (req, res) => {
+router.put('/workflows/:interviewId/:workflowId', (req, res) => {
   try {
     const { interviewId, workflowId } = req.params;
     const { mermaidCode, status } = req.body;
@@ -2096,7 +2209,7 @@ app.put('/workflows/:interviewId/:workflowId', (req, res) => {
 });
 
 // DELETE /workflows/:interviewId/:workflowId - Delete a workflow
-app.delete('/workflows/:interviewId/:workflowId', (req, res) => {
+router.delete('/workflows/:interviewId/:workflowId', (req, res) => {
   try {
     const { interviewId, workflowId } = req.params;
 
@@ -2130,7 +2243,7 @@ app.delete('/workflows/:interviewId/:workflowId', (req, res) => {
 });
 
 // POST /personas/build
-app.post('/personas/build', async (req, res) => {
+router.post('/personas/build', async (req, res) => {
   try {
     const { interviewId } = req.body;
 
@@ -2211,7 +2324,7 @@ app.post('/personas/build', async (req, res) => {
 });
 
 // GET /personas/{id}
-app.get('/personas/:id', (req, res) => {
+router.get('/personas/:id', (req, res) => {
   try {
     const { id } = req.params;
 
@@ -2241,7 +2354,7 @@ app.get('/personas/:id', (req, res) => {
 });
 
 // PUT /personas/{id} - Update a persona
-app.put('/personas/:id', (req, res) => {
+router.put('/personas/:id', (req, res) => {
   try {
     const { id } = req.params;
     const { name, role, organization, yearsOfExperience, bio, photoUrl, traits, expertise, status, industry, isFavorite } = req.body;
@@ -2308,7 +2421,7 @@ app.put('/personas/:id', (req, res) => {
 });
 
 // DELETE /personas/:id - Delete a persona
-app.delete('/personas/:id', (req, res) => {
+router.delete('/personas/:id', (req, res) => {
   try {
     const { id } = req.params;
 
@@ -2337,7 +2450,7 @@ app.delete('/personas/:id', (req, res) => {
 });
 
 // DELETE /personas - Bulk delete personas
-app.delete('/personas', (req, res) => {
+router.delete('/personas', (req, res) => {
   try {
     const { ids } = req.body;
 
@@ -2380,7 +2493,7 @@ app.delete('/personas', (req, res) => {
 });
 
 // POST /personas/{id}/view - Record a view timestamp
-app.post('/personas/:id/view', (req, res) => {
+router.post('/personas/:id/view', (req, res) => {
   try {
     const { id } = req.params;
 
@@ -2405,7 +2518,7 @@ app.post('/personas/:id/view', (req, res) => {
 });
 
 // POST /personas/{id}/advise
-app.post('/personas/:id/advise', async (req, res) => {
+router.post('/personas/:id/advise', async (req, res) => {
   try {
     const { id } = req.params;
     const { question, userId } = req.body;
@@ -2471,7 +2584,7 @@ app.post('/personas/:id/advise', async (req, res) => {
 });
 
 // POST /personas/{id}/feedback - Expert review and validation
-app.post('/personas/:id/feedback', (req, res) => {
+router.post('/personas/:id/feedback', (req, res) => {
   try {
     const { id } = req.params;
     const { validatedBy, feedback } = req.body;
@@ -2561,7 +2674,7 @@ app.post('/personas/:id/feedback', (req, res) => {
 // ============================================
 
 // GET /experts - List all experts
-app.get('/experts', (req, res) => {
+router.get('/experts', (req, res) => {
   try {
     const expertIds = listDataDir('experts');
     const experts = [];
@@ -2587,7 +2700,7 @@ app.get('/experts', (req, res) => {
 });
 
 // GET /experts/:id - Get a single expert
-app.get('/experts/:id', (req, res) => {
+router.get('/experts/:id', (req, res) => {
   try {
     const { id } = req.params;
     const expert = dal.readData(`experts/${id}`);
@@ -2609,7 +2722,7 @@ app.get('/experts/:id', (req, res) => {
 });
 
 // POST /experts - Create a new expert
-app.post('/experts', (req, res) => {
+router.post('/experts', (req, res) => {
   try {
     const { name, email, photo, organization, industry, yearsOfExperience } = req.body;
 
@@ -2645,7 +2758,7 @@ app.post('/experts', (req, res) => {
 });
 
 // PUT /experts/:id - Update an expert
-app.put('/experts/:id', (req, res) => {
+router.put('/experts/:id', (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, photo, organization, industry, yearsOfExperience } = req.body;
@@ -2678,7 +2791,7 @@ app.put('/experts/:id', (req, res) => {
 });
 
 // DELETE /experts/:id - Delete an expert
-app.delete('/experts/:id', (req, res) => {
+router.delete('/experts/:id', (req, res) => {
   try {
     const { id } = req.params;
     const expert = dal.readData(`experts/${id}`);
@@ -2712,7 +2825,7 @@ app.delete('/experts/:id', (req, res) => {
 const VALID_PROJECT_STATUSES = ['draft', 'active', 'complete'];
 
 // GET /projects - List all projects
-app.get('/projects', (req, res) => {
+router.get('/projects', (req, res) => {
   try {
     const { status, expertId } = req.query;
     const projectIds = listDataDir('projects');
@@ -2747,7 +2860,7 @@ app.get('/projects', (req, res) => {
 });
 
 // GET /projects/:id - Get a single project
-app.get('/projects/:id', (req, res) => {
+router.get('/projects/:id', (req, res) => {
   try {
     const { id } = req.params;
     const project = dal.readData(`projects/${id}`);
@@ -2769,7 +2882,7 @@ app.get('/projects/:id', (req, res) => {
 });
 
 // POST /projects - Create a new project
-app.post('/projects', (req, res) => {
+router.post('/projects', (req, res) => {
   try {
     const { title, description, deadline, targetPersonaId, expertId, status, topics } = req.body;
 
@@ -2825,7 +2938,7 @@ app.post('/projects', (req, res) => {
 });
 
 // PUT /projects/:id - Update a project
-app.put('/projects/:id', (req, res) => {
+router.put('/projects/:id', (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, deadline, targetPersonaId, expertId, status, topics } = req.body;
@@ -2873,7 +2986,7 @@ app.put('/projects/:id', (req, res) => {
 });
 
 // DELETE /projects/:id - Delete a project
-app.delete('/projects/:id', (req, res) => {
+router.delete('/projects/:id', (req, res) => {
   try {
     const { id } = req.params;
     const project = dal.readData(`projects/${id}`);
@@ -2908,7 +3021,7 @@ const VALID_FREQUENCIES = ['daily', 'weekly', 'monthly', 'quarterly', 'annual', 
 const VALID_TOPIC_STATUSES = ['pending', 'in-progress', 'complete'];
 
 // GET /topics - List all topics
-app.get('/topics', (req, res) => {
+router.get('/topics', (req, res) => {
   try {
     const { status, frequency } = req.query;
     const topicIds = listDataDir('topics');
@@ -2948,7 +3061,7 @@ app.get('/topics', (req, res) => {
 });
 
 // GET /topics/:id - Get a single topic
-app.get('/topics/:id', (req, res) => {
+router.get('/topics/:id', (req, res) => {
   try {
     const { id } = req.params;
     const topic = dal.readData(`topics/${id}`);
@@ -2970,9 +3083,9 @@ app.get('/topics/:id', (req, res) => {
 });
 
 // POST /topics - Create a new topic
-app.post('/topics', (req, res) => {
+router.post('/topics', (req, res) => {
   try {
-    const { name, description, frequency, order } = req.body;
+    const { name, description, frequency, order, category } = req.body;
 
     // Validate required fields
     if (!name || typeof name !== 'string' || name.trim() === '') {
@@ -3002,6 +3115,7 @@ app.post('/topics', (req, res) => {
       name: name.trim(),
       description: description || '',
       frequency: topicFrequency,
+      category: category || '',
       order: topicOrder,
       status: 'pending',
       createdAt: new Date().toISOString(),
@@ -3020,10 +3134,10 @@ app.post('/topics', (req, res) => {
 });
 
 // PUT /topics/:id - Update a topic
-app.put('/topics/:id', (req, res) => {
+router.put('/topics/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, frequency, order, status } = req.body;
+    const { name, description, frequency, order, status, category } = req.body;
 
     const topic = dal.readData(`topics/${id}`);
     if (!topic) {
@@ -3050,6 +3164,7 @@ app.put('/topics/:id', (req, res) => {
     if (name !== undefined) topic.name = name.trim();
     if (description !== undefined) topic.description = description;
     if (frequency !== undefined) topic.frequency = frequency;
+    if (category !== undefined) topic.category = category;
     if (order !== undefined) topic.order = order;
     if (status !== undefined) topic.status = status;
     topic.updatedAt = new Date().toISOString();
@@ -3066,7 +3181,7 @@ app.put('/topics/:id', (req, res) => {
 });
 
 // DELETE /topics/:id - Delete a topic
-app.delete('/topics/:id', (req, res) => {
+router.delete('/topics/:id', (req, res) => {
   try {
     const { id } = req.params;
     const topic = dal.readData(`topics/${id}`);
@@ -3094,7 +3209,7 @@ app.delete('/topics/:id', (req, res) => {
 });
 
 // PUT /topics/reorder - Reorder all topics
-app.put('/topics/reorder', (req, res) => {
+router.put('/topics/reorder', (req, res) => {
   try {
     const { topicIds } = req.body;
 
@@ -3136,7 +3251,7 @@ app.put('/topics/reorder', (req, res) => {
 const VALID_KNOWLEDGE_ENTRY_STATUSES = ['draft', 'reviewed', 'published'];
 
 // POST /topics/:id/synthesize - Generate knowledge entry from interview
-app.post('/topics/:id/synthesize', async (req, res) => {
+router.post('/topics/:id/synthesize', async (req, res) => {
   try {
     const { id: topicId } = req.params;
 
@@ -3234,7 +3349,7 @@ app.post('/topics/:id/synthesize', async (req, res) => {
 });
 
 // GET /knowledge-entries - List all knowledge entries
-app.get('/knowledge-entries', (req, res) => {
+router.get('/knowledge-entries', (req, res) => {
   try {
     const { status, topicId } = req.query;
     const entryIds = listDataDir('knowledge-entries');
@@ -3269,7 +3384,7 @@ app.get('/knowledge-entries', (req, res) => {
 });
 
 // GET /knowledge-entries/:id - Get a single knowledge entry
-app.get('/knowledge-entries/:id', (req, res) => {
+router.get('/knowledge-entries/:id', (req, res) => {
   try {
     const { id } = req.params;
     const entry = dal.readData(`knowledge-entries/${id}`);
@@ -3291,7 +3406,7 @@ app.get('/knowledge-entries/:id', (req, res) => {
 });
 
 // PUT /knowledge-entries/:id - Update a knowledge entry (for expert review/edit)
-app.put('/knowledge-entries/:id', (req, res) => {
+router.put('/knowledge-entries/:id', (req, res) => {
   try {
     const { id } = req.params;
     const { sections, status, crossReferences, qualityNotes } = req.body;
@@ -3336,7 +3451,7 @@ app.put('/knowledge-entries/:id', (req, res) => {
 });
 
 // DELETE /knowledge-entries/:id - Delete a knowledge entry
-app.delete('/knowledge-entries/:id', (req, res) => {
+router.delete('/knowledge-entries/:id', (req, res) => {
   try {
     const { id } = req.params;
     const entry = dal.readData(`knowledge-entries/${id}`);
@@ -3386,7 +3501,7 @@ const ROLE_TO_SLUG = {
 };
 
 // GET /qa/scenarios/:role - Get test scenarios for a role
-app.get('/qa/scenarios/:role', (req, res) => {
+router.get('/qa/scenarios/:role', (req, res) => {
   try {
     const { role } = req.params;
 
@@ -3431,7 +3546,7 @@ app.get('/qa/scenarios/:role', (req, res) => {
 });
 
 // POST /qa/run - Run a scenario against a persona
-app.post('/qa/run', async (req, res) => {
+router.post('/qa/run', async (req, res) => {
   try {
     const { personaId, scenarioId } = req.body;
 
@@ -3516,7 +3631,7 @@ app.post('/qa/run', async (req, res) => {
 });
 
 // POST /qa/evaluate - Submit evaluation scores
-app.post('/qa/evaluate', (req, res) => {
+router.post('/qa/evaluate', (req, res) => {
   try {
     const { evaluationId, accuracy, tone, actionability, riskAwareness, comments } = req.body;
 
@@ -3580,7 +3695,7 @@ app.post('/qa/evaluate', (req, res) => {
 });
 
 // GET /qa/evaluations - List all evaluations
-app.get('/qa/evaluations', (req, res) => {
+router.get('/qa/evaluations', (req, res) => {
   try {
     const { personaId, scenarioId, status } = req.query;
     const evaluationIds = listDataDir('evaluations');
@@ -3618,7 +3733,7 @@ app.get('/qa/evaluations', (req, res) => {
 });
 
 // GET /qa/evaluations/:id - Get a single evaluation
-app.get('/qa/evaluations/:id', (req, res) => {
+router.get('/qa/evaluations/:id', (req, res) => {
   try {
     const { id } = req.params;
     const evaluation = dal.readData(`evaluations/${id}`);
@@ -3687,7 +3802,7 @@ function calculateAverageScores(evaluations) {
 }
 
 // GET /qa/analytics/personas/:id - Aggregated analytics for a persona
-app.get('/qa/analytics/personas/:id', (req, res) => {
+router.get('/qa/analytics/personas/:id', (req, res) => {
   try {
     const { id } = req.params;
 
@@ -3773,7 +3888,7 @@ app.get('/qa/analytics/personas/:id', (req, res) => {
 });
 
 // GET /qa/analytics/scenarios - Analytics across all scenarios
-app.get('/qa/analytics/scenarios', (req, res) => {
+router.get('/qa/analytics/scenarios', (req, res) => {
   try {
     const allEvaluations = getAllEvaluations();
 
@@ -3843,7 +3958,7 @@ app.get('/qa/analytics/scenarios', (req, res) => {
 });
 
 // GET /qa/analytics/summary - Overall QA health summary
-app.get('/qa/analytics/summary', (req, res) => {
+router.get('/qa/analytics/summary', (req, res) => {
   try {
     const allEvaluations = getAllEvaluations();
 
@@ -3939,7 +4054,7 @@ app.get('/qa/analytics/summary', (req, res) => {
 });
 
 // GET /qa/analytics/export - Export evaluations as CSV
-app.get('/qa/analytics/export', (req, res) => {
+router.get('/qa/analytics/export', (req, res) => {
   try {
     const { format } = req.query;
 
@@ -4008,7 +4123,7 @@ app.get('/qa/analytics/export', (req, res) => {
 // ============================================
 
 // GET /admin/dashboard - Admin overview of system data
-app.get('/admin/dashboard', (req, res) => {
+router.get('/admin/dashboard', (req, res) => {
   try {
     const interviewIds = listDataDir('interviews');
     const personaIds = listDataDir('personas');
@@ -4080,7 +4195,7 @@ app.get('/admin/dashboard', (req, res) => {
 // ============================================
 
 // GET /admin/advisor-logs - List advisor interaction logs with filters
-app.get('/admin/advisor-logs', (req, res) => {
+router.get('/admin/advisor-logs', (req, res) => {
   try {
     const { personaId, userId, fromDate, toDate, page, limit } = req.query;
 
@@ -4142,7 +4257,7 @@ app.get('/admin/advisor-logs', (req, res) => {
 });
 
 // GET /admin/advisor-logs/:id - Get a single advisor log
-app.get('/admin/advisor-logs/:id', (req, res) => {
+router.get('/admin/advisor-logs/:id', (req, res) => {
   try {
     const { id } = req.params;
     const log = dal.readData(`advisor-logs/${id}`);
@@ -4163,6 +4278,4 @@ app.get('/admin/advisor-logs/:id', (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`API listening at http://localhost:${port}`);
-});
+module.exports = router;
