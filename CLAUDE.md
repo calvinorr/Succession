@@ -2,24 +2,18 @@
 
 ## Project Overview
 
-Succession captures expert knowledge from local authority finance staff through structured interviews, synthesizes it into AI personas, and provides decision support to successors.
+Succession captures expert knowledge from local authority finance staff through structured interviews and provides that knowledge to successors through a searchable knowledge base.
 
-**Target Roles:** Finance Director, Head of AP, Head of AR, Head of Treasury
+**Three User Roles:**
+- **Expert** - Captures knowledge through guided interviews
+- **Successor** - Accesses and learns from captured knowledge
+- **Admin** - Oversees the system and manages quality
 
 ## Critical Constraints
 
-**DO NOT introduce these concepts (not in PRD):**
-- Industry, Projects, Expert entity, Organizations
-
-This is a **single local authority deployment**, not multi-industry SaaS. Design mockups in `docs/Screendesign/` are visual inspiration only - defer to `docs/project-plan.md`.
-
-## Core Entities
-
-| Entity | Key Fields | Purpose |
-|--------|------------|---------|
-| Interview | id, role, phase, messages[], expertName | Knowledge capture session |
-| Snapshot | id, interviewId, phase, topics, insights | Extracted knowledge |
-| Persona | id, role, interviewId, promptText, status | AI expert representation |
+**DO NOT introduce these concepts:**
+- Industry, Projects, Organizations (this is single local authority deployment)
+- Fixed roles like "Finance Director" (experts define their own topics)
 
 ## Architecture
 
@@ -27,14 +21,14 @@ This is a **single local authority deployment**, not multi-industry SaaS. Design
 src/
 ├── api/api.js    # Express REST endpoints
 ├── dal/dal.js    # JSON file persistence
-├── agents/       # LLM agents (Interviewer, Note-Taker, Persona Builder, Advisor)
+├── agents/       # LLM agents (Interviewer, Note-Taker, etc.)
 ├── services/     # LLM service layer
 └── ui/           # Frontend HTML/JS
+    ├── index.html       # Role selector
+    ├── expert/          # Expert portal
+    ├── successor/       # Successor portal
+    └── admin/           # Admin portal
 ```
-
-**Data Flow:** Interview → Snapshots → Persona → Expert Advice
-
-**Interview Phases:** Warm-Up → Core Frameworks → Cases → Meta → Complete
 
 ## Commands
 
@@ -44,4 +38,9 @@ npm start   # Express server on port 3000
 
 ## Source of Truth
 
-Requirements: `docs/project-plan.md`, `docs/epics/`, `docs/stories/`
+- GitHub Issues: https://github.com/calvinorr/Succession/issues
+- Current Epic: #39 (Unified Knowledge Transfer Workflow)
+
+## Status
+
+Project reset on 2024-12-14. In planning mode to define unified workflow.

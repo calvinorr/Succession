@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Succession | Successor Portal</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand': {
+                            50: '#eef4ff', 100: '#d9e5ff', 200: '#bcd2ff', 300: '#8eb5ff',
+                            400: '#598eff', 500: '#3366ff', 600: '#1a44f5', 700: '#1333e1',
+                            800: '#162bb6', 900: '#182a8f',
+                        },
+                        'surface': {
+                            0: '#ffffff', 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0',
+                            300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569',
+                            700: '#334155', 800: '#1e293b', 900: '#0f172a',
+                        },
+                        'successor': {
+                            50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 300: '#d8b4fe',
+                            400: '#c084fc', 500: '#a855f7', 600: '#9333ea', 700: '#7e22ce',
+                        }
+                    },
+                    fontFamily: {
+                        'display': ['"DM Serif Display"', 'serif'],
+                        'body': ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glow': '0 0 40px -10px rgba(168, 85, 247, 0.3)',
+                        'card': '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
+</head>
+
+<body class="bg-surface-50 font-body text-surface-800 h-screen flex overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-surface-0 border-r border-surface-200/80 flex flex-col h-full flex-shrink-0">
+        <div class="flex flex-col h-full p-5">
+            <!-- Logo -->
+            <div class="flex items-center gap-3 mb-10 px-1">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-successor-500 to-successor-600 flex items-center justify-center shadow-glow">
+                    <span class="material-symbols-outlined text-white text-xl">person_search</span>
+                </div>
+                <div>
+                    <h1 class="font-display text-xl text-surface-900 tracking-tight">Succession</h1>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-successor-600 font-medium">Successor Portal</p>
+                </div>
+            </div>
+
+            <!-- Navigation - Successor Portal -->
+            <nav class="flex flex-col gap-1 flex-1">
+                <a href="index.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-successor-50 text-successor-600 transition-all">
+                    <span class="material-symbols-outlined filled text-[20px]">home</span>
+                    <span class="text-sm font-semibold">Role Overview</span>
+                </a>
+                <a href="calendar.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 transition-all">
+                    <span class="material-symbols-outlined text-[20px]">calendar_month</span>
+                    <span class="text-sm font-medium">Calendar</span>
+                </a>
+                <a href="knowledge.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 transition-all">
+                    <span class="material-symbols-outlined text-[20px]">menu_book</span>
+                    <span class="text-sm font-medium">Knowledge Base</span>
+                </a>
+                <a href="ask.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 transition-all">
+                    <span class="material-symbols-outlined text-[20px]">help</span>
+                    <span class="text-sm font-medium">Ask a Question</span>
+                </a>
+                <div class="flex-1"></div>
+                <a href="../index.html" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-surface-500 hover:text-surface-700 hover:bg-surface-100 transition-all">
+                    <span class="material-symbols-outlined text-[20px]">swap_horiz</span>
+                    <span class="text-sm font-medium">Switch Role</span>
+                </a>
+            </nav>
+
+            <!-- User -->
+            <div class="border-t border-surface-200/80 pt-5 mt-4">
+                <div class="flex items-center gap-3 px-1">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-successor-400 to-successor-600 flex items-center justify-center text-white font-semibold text-sm">SU</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-surface-800 truncate">Successor User</p>
+                        <p class="text-xs text-surface-400 truncate">Learning the Role</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden">
+        <div class="flex-1 flex items-center justify-center p-8">
+            <div class="text-center max-w-lg">
+                <div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-successor-400 to-successor-600 flex items-center justify-center shadow-glow">
+                    <span class="material-symbols-outlined text-white text-4xl">construction</span>
+                </div>
+                <h1 class="font-display text-3xl text-surface-900 mb-3">Successor Portal</h1>
+                <p class="text-surface-500 mb-6">
+                    This portal is under construction. Soon you'll be able to explore the knowledge base,
+                    view your role calendar, and ask questions powered by AI.
+                </p>
+                <div class="bg-successor-50 border border-successor-200 rounded-xl p-4 mb-6">
+                    <h3 class="font-semibold text-successor-700 mb-2">Coming Soon:</h3>
+                    <ul class="text-sm text-successor-600 space-y-1 text-left">
+                        <li class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                            Role Overview with key responsibilities
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                            Calendar view (daily/weekly/monthly tasks)
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                            Searchable Knowledge Base
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                            AI-powered Q&A
+                        </li>
+                    </ul>
+                </div>
+                <a href="../index.html" class="inline-flex items-center gap-2 px-4 py-2.5 bg-surface-100 hover:bg-surface-200 text-surface-600 rounded-xl font-medium transition-all">
+                    <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+                    Back to Role Selection
+                </a>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

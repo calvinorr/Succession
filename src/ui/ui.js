@@ -11,6 +11,44 @@ const phaseDisplay = document.getElementById('phase-display');
 let interviewId = null;
 let isLoading = false;
 
+// Check for existing interview ID in URL and load it
+async function checkForExistingInterview() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const existingId = urlParams.get('id');
+
+    if (existingId) {
+        try {
+            const response = await fetch(`/interviews/${existingId}`);
+            if (response.ok) {
+                const interview = await response.json();
+                interviewId = interview.id;
+
+                // Show chat section, hide start section
+                startSection.classList.add('hidden');
+                chatSection.classList.remove('hidden');
+                roleDisplay.textContent = interview.role || 'Expert Interview';
+                if (phaseDisplay) phaseDisplay.textContent = `Phase: ${interview.phase || 'warm-up'}`;
+
+                // Load existing messages
+                if (interview.messages && interview.messages.length > 0) {
+                    interview.messages.forEach(msg => {
+                        const sender = msg.role === 'user' ? 'Expert' : 'Interviewer';
+                        addMessage(sender, msg.content);
+                    });
+                    addMessage('System', 'Interview resumed. Continue where you left off.');
+                } else {
+                    addMessage('System', `Interview loaded for ${interview.role || 'expert'}. The AI interviewer will guide you through capturing expert knowledge.`);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading existing interview:', error);
+        }
+    }
+}
+
+// Run on page load
+document.addEventListener('DOMContentLoaded', checkForExistingInterview);
+
 // Function to set loading state
 const setLoading = (loading) => {
     isLoading = loading;
@@ -82,6 +120,16 @@ const sendMessage = async () => {
 
         const data = await response.json();
         addMessage('Interviewer', data.response);
+
+        // Story 2.4: Check for completion signal and show summary modal
+        if (data.completionDetected) {
+            // Short delay to let user read the response first
+            setTimeout(() => {
+                if (typeof showSummaryModal === 'function') {
+                    showSummaryModal();
+                }
+            }, 1500);
+        }
     } catch (error) {
         console.error('Error sending message:', error);
         addMessage('System', 'Error: Unable to reach server. Please try again.');
