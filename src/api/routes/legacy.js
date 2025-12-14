@@ -200,13 +200,6 @@ async function extractKnowledgePointsFromSnapshot(interviewId, interview, extrac
   return created;
 }
 
-const VALID_ROLES = [
-  'Finance Director',
-  'Head of AP',
-  'Head of AR',
-  'Head of Treasury',
-];
-
 // Helper to list all files in a data directory
 function listDataDir(subdir) {
   const dirPath = path.join('./data', subdir);
@@ -320,63 +313,6 @@ router.get('/dashboard/stats', (req, res) => {
   }
 });
 
-// Story 5.1: GET /roles/:role/checklist - Get topic checklist for a role
-router.get('/roles/:role/checklist', (req, res) => {
-  try {
-    const { role } = req.params;
-
-    // Get the checklist from the interviewer module
-    const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[role];
-
-    if (!checklist) {
-      // Return list of valid roles if role not found
-      const validRoles = Object.keys(interviewer.ROLE_TOPIC_CHECKLISTS);
-      return res.status(404).json({
-        error: `Role not found: ${role}`,
-        validRoles,
-      });
-    }
-
-    // Return the checklist with additional metadata
-    res.json({
-      role,
-      description: checklist.description,
-      topicCount: checklist.topics.length,
-      topics: checklist.topics,
-      processOrientedCount: checklist.topics.filter(t => t.isProcessOriented).length,
-    });
-  } catch (error) {
-    console.error('Error getting role checklist:', error);
-    res.status(500).json({
-      error: 'Internal server error getting role checklist',
-      details: error.message,
-    });
-  }
-});
-
-// GET /roles - List all roles with their checklists
-router.get('/roles', (req, res) => {
-  try {
-    const roles = Object.keys(interviewer.ROLE_TOPIC_CHECKLISTS).map(role => {
-      const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[role];
-      return {
-        role,
-        description: checklist.description,
-        topicCount: checklist.topics.length,
-        processOrientedCount: checklist.topics.filter(t => t.isProcessOriented).length,
-      };
-    });
-
-    res.json(roles);
-  } catch (error) {
-    console.error('Error listing roles:', error);
-    res.status(500).json({
-      error: 'Internal server error listing roles',
-      details: error.message,
-    });
-  }
-});
-
 // GET /interviews - List all interviews
 router.get('/interviews', (req, res) => {
   try {
@@ -406,7 +342,6 @@ router.get('/interviews', (req, res) => {
           updatedAt: interview.updatedAt || interview.createdAt,
           // For UI compatibility with designs
           expertName: interview.expertName || 'Unknown Expert',
-          industry: interview.industry || 'Finance & Banking',
           // New fields
           expertId: interview.expertId || null,
           topicId: interview.topicId || null,
@@ -511,7 +446,6 @@ router.get('/interviews/:id', (req, res) => {
       ...interview,
       status,
       expertName: interview.expertName || 'Unknown Expert',
-      industry: interview.industry || 'Finance & Banking',
       // Ensure new fields have defaults for backward compatibility
       expertId: interview.expertId || null,
       topicId: interview.topicId || null,
@@ -627,7 +561,7 @@ function normalizeExpertise(expertise) {
 // GET /personas - List all personas
 router.get('/personas', (req, res) => {
   try {
-    const { status: filterStatus, role: filterRole, industry, isFavorite, latestValidated, sortBy, sortOrder, page, limit } = req.query;
+    const { status: filterStatus, role: filterRole, isFavorite, latestValidated, sortBy, sortOrder, page, limit } = req.query;
     const personaIds = listDataDir('personas');
     let personas = [];
 
@@ -639,7 +573,6 @@ router.get('/personas', (req, res) => {
           name: persona.name || persona.role,
           role: persona.role,
           version: persona.version || 1,
-          organization: persona.organization || 'Organization',
           bio: persona.bio || persona.promptText?.substring(0, 150) + '...',
           photoUrl: persona.photoUrl || null,
           status: persona.status || 'Draft',
@@ -647,7 +580,6 @@ router.get('/personas', (req, res) => {
           validatedAt: persona.validatedAt || null,
           traits: persona.traits || [],
           expertise: normalizeExpertise(persona.expertise),
-          industry: persona.industry || 'Finance & Banking',
           yearsOfExperience: persona.yearsOfExperience || null,
           isFavorite: persona.isFavorite || false,
           viewedAt: persona.viewedAt || null,
@@ -664,9 +596,6 @@ router.get('/personas', (req, res) => {
     }
     if (filterRole) {
       personas = personas.filter(p => p.role === filterRole);
-    }
-    if (industry) {
-      personas = personas.filter(p => p.industry.toLowerCase().includes(industry.toLowerCase()));
     }
     if (isFavorite === 'true') {
       personas = personas.filter(p => p.isFavorite === true);
@@ -754,23 +683,21 @@ router.get('/personas', (req, res) => {
 
 // POST /interviews/start
 router.post('/interviews/start', (req, res) => {
-  const { role, expertName, industry, description, topics, expertId, topicId, questions } = req.body || {};
+  const { expertName, description, expertId, topicId, questions } = req.body || {};
 
-  // Role validation is now optional when topicId is provided
-  if (!topicId && (!role || !VALID_ROLES.includes(role))) {
+  // topicId is required - interviews are linked to topics
+  if (!topicId) {
     return res.status(400).json({
-      error: `Invalid role. Must be one of: ${VALID_ROLES.join(', ')} (or provide topicId)`,
+      error: 'topicId is required. Interviews must be linked to a topic.',
     });
   }
 
-  // If topicId provided, verify it exists
-  if (topicId) {
-    const topic = dal.readData(`topics/${topicId}`);
-    if (!topic) {
-      return res.status(400).json({
-        error: `Topic not found: ${topicId}`,
-      });
-    }
+  // Verify topic exists
+  const topic = dal.readData(`topics/${topicId}`);
+  if (!topic) {
+    return res.status(400).json({
+      error: `Topic not found: ${topicId}`,
+    });
   }
 
   // Normalize questions array with structured format
@@ -781,54 +708,21 @@ router.post('/interviews/start', (req, res) => {
       text: q.text || q.title || q,
       order: q.order !== undefined ? q.order : index,
     }));
-  } else if (topics && Array.isArray(topics)) {
-    // Backward compatibility: convert topics to questions format
-    normalizedQuestions = topics.map((t, index) => ({
-      id: t.id || Math.random().toString(36).substring(2, 10),
-      text: t.title || t.description || t,
-      order: t.order !== undefined ? t.order : index,
-    }));
   }
 
   const interviewId = Math.random().toString(36).substring(2, 15);
 
-  // Story 5.2: Initialize topic progress from role checklist
-  let topicProgress = null;
-  let currentTopicId = null;
-  if (role && interviewer.ROLE_TOPIC_CHECKLISTS[role]) {
-    const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[role];
-    topicProgress = {};
-    checklist.topics.forEach((topic, index) => {
-      topicProgress[topic.id] = {
-        status: 'not-started',
-        coveragePercent: 0,
-        validated: false,
-        discussedAt: null,
-        knowledgePoints: []
-      };
-      // Set first topic as current
-      if (index === 0) {
-        currentTopicId = topic.id;
-        topicProgress[topic.id].status = 'in-progress';
-      }
-    });
-  }
-
   const interview = {
     id: interviewId,
-    role: role || null,
+    topicId,
     phase: 'warm-up',
     messages: [],
     questions: normalizedQuestions,
     questionsCompleted: [],
-    topicProgress,
-    currentTopicId,
     createdAt: new Date().toISOString(),
     ...(expertName && { expertName }),
-    ...(industry && { industry }),
     ...(description && { description }),
     ...(expertId && { expertId }),
-    ...(topicId && { topicId }),
   };
 
   dal.writeData(`interviews/${interviewId}`, interview);
@@ -839,7 +733,7 @@ router.post('/interviews/start', (req, res) => {
 router.put('/interviews/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { expertName, industry, phase, status, expertId, topicId, questions, questionsCompleted } = req.body;
+    const { expertName, phase, status, expertId, topicId, questions, questionsCompleted } = req.body;
 
     // Load existing interview from DAL
     const interview = dal.readData(`interviews/${id}`);
@@ -851,7 +745,6 @@ router.put('/interviews/:id', (req, res) => {
 
     // Merge updates with existing data (don't replace messages)
     if (expertName !== undefined) interview.expertName = expertName;
-    if (industry !== undefined) interview.industry = industry;
     if (phase !== undefined) interview.phase = phase;
     if (status !== undefined) interview.status = status;
     if (expertId !== undefined) interview.expertId = expertId;
@@ -1028,50 +921,12 @@ router.post('/interviews/:id/message', async (req, res) => {
           systemPrompt += `\n\n## IMPORTANT: Expert is finishing this topic\nThe expert has indicated they want to finish this topic. Acknowledge their input, briefly summarise the key points captured, and confirm the topic is complete. Be warm and appreciative.`;
         }
       } else {
-        // Topic not found, fall back to role-based
-        systemPrompt = interviewer.getSystemPrompt(
-          interview.role || 'Finance Director',
-          interview.phase || 'warm-up'
-        );
+        // Topic not found
+        return res.status(400).json({ error: `Topic not found: ${interview.topicId}` });
       }
     } else {
-      // No topic, use role-based interviewer
-      systemPrompt = interviewer.getSystemPrompt(
-        interview.role,
-        interview.phase
-      );
-
-      // Story 5.2: Add topic context from checklist if available
-      if (interview.role && interview.currentTopicId && interview.topicProgress) {
-        const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[interview.role];
-        if (checklist) {
-          const currentTopic = checklist.topics.find(t => t.id === interview.currentTopicId);
-          if (currentTopic) {
-            // Build topic progress summary
-            const topicsSummary = checklist.topics.map(t => {
-              const progress = interview.topicProgress[t.id];
-              const status = progress?.status || 'not-started';
-              const icon = status === 'complete' ? '✓' : status === 'in-progress' ? '→' : '○';
-              return `${icon} ${t.name}`;
-            }).join('\n');
-
-            // Add topic guidance to system prompt
-            systemPrompt += `\n\n## CURRENT TOPIC FOCUS
-**Current Topic:** ${currentTopic.name}
-**Topic Description:** ${currentTopic.description}
-**Knowledge Areas to Cover:** ${currentTopic.requiredAreas.join(', ')}
-
-## Topic Progress (${checklist.topics.filter(t => interview.topicProgress[t.id]?.status === 'complete').length}/${checklist.topics.length} complete)
-${topicsSummary}
-
-## Topic Guidance
-- Focus your questions on "${currentTopic.name}" until it's well covered
-- When you feel this topic is sufficiently explored, mention that you've "covered ${currentTopic.name} well" and ask if they want to move to the next topic
-- If the expert mentions another topic from the list, acknowledge it and ask if they want to switch focus
-- Don't rigidly stick to one topic if the expert naturally flows to related areas - follow their expertise`;
-          }
-        }
-      }
+      // No topic linked to interview
+      return res.status(400).json({ error: 'Interview has no topicId. All interviews must be linked to a topic.' });
     }
 
     // Call LLM service with system prompt and full message history
@@ -1460,121 +1315,9 @@ router.get('/interviews/:id/summary', (req, res) => {
   }
 });
 
-// POST /interviews/{id}/initialize-topics - Initialize topic tracking for an existing interview
-router.post('/interviews/:id/initialize-topics', (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const interview = dal.readData(`interviews/${id}`);
-    if (!interview) {
-      return res.status(404).json({ error: `Interview not found: ${id}` });
-    }
-
-    if (!interview.role) {
-      return res.status(400).json({ error: 'Interview has no role assigned' });
-    }
-
-    // Get the checklist for this role
-    const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[interview.role];
-    if (!checklist) {
-      return res.status(400).json({ error: `No checklist found for role: ${interview.role}` });
-    }
-
-    // Initialize topicProgress if not exists
-    if (!interview.topicProgress) {
-      interview.topicProgress = {};
-      for (const topic of checklist.topics) {
-        interview.topicProgress[topic.id] = {
-          status: 'not-started',
-          coveragePercent: 0,
-          validated: false,
-          hasWorkflow: false
-        };
-      }
-      // Set first topic as current
-      interview.currentTopicId = checklist.topics[0]?.id || null;
-    }
-
-    interview.updatedAt = new Date().toISOString();
-    dal.writeData(`interviews/${id}`, interview);
-
-    res.json({
-      success: true,
-      message: `Initialized ${checklist.topics.length} topics for ${interview.role}`,
-      topicCount: checklist.topics.length
-    });
-  } catch (error) {
-    console.error('Error initializing topics:', error);
-    res.status(500).json({
-      error: 'Internal server error initializing topics',
-      details: error.message,
-    });
-  }
-});
-
-// Story 5.2: GET /interviews/{id}/topic-progress - Get topic progress for an interview
-router.get('/interviews/:id/topic-progress', (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const interview = dal.readData(`interviews/${id}`);
-    if (!interview) {
-      return res.status(404).json({ error: `Interview not found: ${id}` });
-    }
-
-    if (!interview.role || !interview.topicProgress) {
-      return res.status(400).json({
-        error: 'Interview does not have topic tracking enabled',
-        hint: 'Topic tracking is only available for role-based interviews'
-      });
-    }
-
-    // Get the checklist for this role
-    const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[interview.role];
-    if (!checklist) {
-      return res.status(400).json({ error: `No checklist found for role: ${interview.role}` });
-    }
-
-    // Build enriched topic progress with names and descriptions
-    const topics = checklist.topics.map(topic => ({
-      ...topic,
-      progress: interview.topicProgress[topic.id] || {
-        status: 'not-started',
-        coveragePercent: 0,
-        validated: false
-      },
-      isCurrent: interview.currentTopicId === topic.id
-    }));
-
-    // Calculate overall progress
-    const completedCount = topics.filter(t => t.progress.status === 'complete').length;
-    const inProgressCount = topics.filter(t => t.progress.status === 'in-progress').length;
-    const totalPercent = Math.round(
-      topics.reduce((sum, t) => sum + (t.progress.coveragePercent || 0), 0) / topics.length
-    );
-
-    res.json({
-      interviewId: id,
-      role: interview.role,
-      currentTopicId: interview.currentTopicId,
-      topics,
-      summary: {
-        total: topics.length,
-        completed: completedCount,
-        inProgress: inProgressCount,
-        notStarted: topics.length - completedCount - inProgressCount,
-        overallPercent: totalPercent,
-        meetsThreshold: totalPercent >= 70
-      }
-    });
-  } catch (error) {
-    console.error('Error getting topic progress:', error);
-    res.status(500).json({
-      error: 'Internal server error getting topic progress',
-      details: error.message,
-    });
-  }
-});
+// REMOVED: POST /interviews/{id}/initialize-topics - Role-based endpoint removed
+// REMOVED: GET /interviews/{id}/topic-progress - Role-based endpoint removed
+// New architecture: Interviews are linked to topics via topicId, not roles
 
 // Story 5.2: POST /interviews/{id}/topic/{topicId}/select - Set current topic
 router.post('/interviews/:id/topic/:topicId/select', (req, res) => {
@@ -1636,21 +1379,9 @@ router.post('/interviews/:id/topic/:topicId/complete', (req, res) => {
     interview.topicProgress[topicId].status = 'complete';
     interview.topicProgress[topicId].completedAt = new Date().toISOString();
 
-    // If this was the current topic, move to next uncompleted topic
+    // Clear current topic if this was it (no auto-advance in new architecture)
     if (interview.currentTopicId === topicId) {
-      const checklist = interviewer.ROLE_TOPIC_CHECKLISTS[interview.role];
-      if (checklist) {
-        const nextTopic = checklist.topics.find(t =>
-          interview.topicProgress[t.id]?.status !== 'complete' && t.id !== topicId
-        );
-        if (nextTopic) {
-          interview.currentTopicId = nextTopic.id;
-          if (interview.topicProgress[nextTopic.id].status === 'not-started') {
-            interview.topicProgress[nextTopic.id].status = 'in-progress';
-            interview.topicProgress[nextTopic.id].discussedAt = new Date().toISOString();
-          }
-        }
-      }
+      interview.currentTopicId = null;
     }
 
     interview.updatedAt = new Date().toISOString();
@@ -1705,30 +1436,27 @@ router.get('/interviews/:id/knowledge-points', (req, res) => {
 
     // Get all knowledge points for this interview
     const points = listKnowledgePoints(id);
-
-    // Get topic checklist if available
-    const checklist = interview.role ? interviewer.ROLE_TOPIC_CHECKLISTS[interview.role] : null;
     const topicMap = {};
 
-    // Initialize topics from checklist
-    if (checklist) {
-      for (const topic of checklist.topics) {
+    // Initialize topic from interview's linked topic if available
+    if (interview.topicId) {
+      const topic = dal.readData(`topics/${interview.topicId}`);
+      if (topic) {
         topicMap[topic.id] = {
           id: topic.id,
           name: topic.name,
-          description: topic.description,
-          requiredAreas: topic.requiredAreas || VALID_KNOWLEDGE_AREAS,
-          validationStatus: interview.topicProgress?.[topic.id]?.validationStatus || 'draft',
+          description: topic.description || '',
+          requiredAreas: VALID_KNOWLEDGE_AREAS,
+          validationStatus: 'draft',
           areas: {}
         };
-        // Initialize all areas
-        for (const area of (topic.requiredAreas || VALID_KNOWLEDGE_AREAS)) {
+        for (const area of VALID_KNOWLEDGE_AREAS) {
           topicMap[topic.id].areas[area] = [];
         }
       }
     }
 
-    // Also handle points for topics not in checklist (e.g., "general")
+    // Handle points for all topics (including those not in the initial topic)
     for (const point of points) {
       const topicId = point.topicId || 'general';
       if (!topicMap[topicId]) {
@@ -1994,21 +1722,10 @@ router.post('/interviews/:id/topics/:topicId/workflow', async (req, res) => {
       return res.status(404).json({ error: `Interview not found: ${id}` });
     }
 
-    // Check if topic exists and is process-oriented
-    const checklist = interview.role ? interviewer.ROLE_TOPIC_CHECKLISTS[interview.role] : null;
-    if (!checklist) {
-      return res.status(400).json({ error: 'Interview role not found in topic checklists' });
-    }
-
-    const topic = checklist.topics.find(t => t.id === topicId);
+    // Get topic from dal
+    const topic = dal.readData(`topics/${topicId}`);
     if (!topic) {
       return res.status(404).json({ error: `Topic not found: ${topicId}` });
-    }
-
-    if (!topic.isProcessOriented) {
-      return res.status(400).json({
-        error: `Topic "${topic.name}" is not process-oriented. Workflow diagrams are only available for process-oriented topics.`
-      });
     }
 
     // Extract relevant transcript content
@@ -2332,7 +2049,7 @@ router.get('/personas/:id', (req, res) => {
 router.put('/personas/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { name, role, organization, yearsOfExperience, bio, photoUrl, traits, expertise, status, industry, isFavorite } = req.body;
+    const { name, role, yearsOfExperience, bio, photoUrl, traits, expertise, status, isFavorite } = req.body;
 
     // Load existing persona from DAL
     const persona = dal.readData(`personas/${id}`);
@@ -2355,14 +2072,12 @@ router.put('/personas/:id', (req, res) => {
     // Merge updates with existing data
     if (name !== undefined) persona.name = name;
     if (role !== undefined) persona.role = role;
-    if (organization !== undefined) persona.organization = organization;
     if (yearsOfExperience !== undefined) persona.yearsOfExperience = yearsOfExperience;
     if (bio !== undefined) persona.bio = bio;
     if (photoUrl !== undefined) persona.photoUrl = photoUrl;
     if (traits !== undefined) persona.traits = traits;
     if (expertise !== undefined) persona.expertise = normalizeExpertise(expertise);
     if (status !== undefined) persona.status = status;
-    if (industry !== undefined) persona.industry = industry;
     if (isFavorite !== undefined) persona.isFavorite = isFavorite;
 
     // Ensure version is set (for legacy personas)
