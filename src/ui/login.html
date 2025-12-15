@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Succession</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand': {
+                            50: '#eef4ff', 100: '#d9e5ff', 200: '#bcd2ff', 300: '#8eb5ff',
+                            400: '#598eff', 500: '#3366ff', 600: '#1a44f5', 700: '#1333e1',
+                            800: '#162bb6', 900: '#182a8f',
+                        },
+                        'surface': {
+                            0: '#ffffff', 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0',
+                            300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569',
+                            700: '#334155', 800: '#1e293b', 900: '#0f172a',
+                        },
+                        'expert': {
+                            50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac',
+                            400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d',
+                        },
+                    },
+                    fontFamily: {
+                        'display': ['"DM Serif Display"', 'serif'],
+                        'body': ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glow': '0 0 40px -10px rgba(51, 102, 255, 0.3)',
+                        'card': '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
+                        'card-hover': '0 4px 20px rgba(0,0,0,0.08), 0 8px 30px rgba(0,0,0,0.06)',
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #f8fafc 0%, #eef4ff 50%, #f0fdf4 100%);
+            background-size: 400% 400%;
+            animation: gradient-shift 15s ease infinite;
+        }
+
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(51, 102, 255, 0.15);
+        }
+    </style>
+</head>
+
+<body class="gradient-bg font-body text-surface-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="p-6">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <a href="index.html" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-glow">
+                    <span class="material-symbols-outlined text-white text-2xl">hub</span>
+                </div>
+                <div>
+                    <h1 class="font-display text-2xl text-surface-900 tracking-tight">Succession</h1>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-surface-400 font-medium">Knowledge Transfer Platform</p>
+                </div>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex items-center justify-center p-6">
+        <div class="w-full max-w-md">
+            <!-- Login Card -->
+            <div class="bg-white rounded-2xl border border-surface-200/60 shadow-card overflow-hidden">
+                <div class="p-8">
+                    <!-- Icon & Title -->
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-expert-400 to-expert-600 flex items-center justify-center mx-auto mb-4">
+                            <span class="material-symbols-outlined text-white text-3xl">login</span>
+                        </div>
+                        <h2 class="font-display text-2xl text-surface-900 mb-2">Welcome Back</h2>
+                        <p class="text-sm text-surface-500">Sign in to access your expert portal</p>
+                    </div>
+
+                    <!-- Error Message -->
+                    <div id="errorMessage" class="hidden mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center gap-3">
+                        <span class="material-symbols-outlined text-red-500">error</span>
+                        <span id="errorText">Invalid credentials</span>
+                    </div>
+
+                    <!-- Login Form -->
+                    <form id="loginForm" class="space-y-5">
+                        <div>
+                            <label for="username" class="block text-sm font-medium text-surface-700 mb-2">Username</label>
+                            <div class="relative">
+                                <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-surface-400 text-xl">person</span>
+                                <input
+                                    type="text"
+                                    id="username"
+                                    name="username"
+                                    required
+                                    autocomplete="username"
+                                    class="w-full pl-12 pr-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-surface-800 placeholder-surface-400 transition-all hover:border-surface-300 focus:border-brand-500"
+                                    placeholder="Enter your username"
+                                >
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="password" class="block text-sm font-medium text-surface-700 mb-2">Password</label>
+                            <div class="relative">
+                                <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-surface-400 text-xl">lock</span>
+                                <input
+                                    type="password"
+                                    id="password"
+                                    name="password"
+                                    required
+                                    autocomplete="current-password"
+                                    class="w-full pl-12 pr-4 py-3 bg-surface-50 border border-surface-200 rounded-xl text-surface-800 placeholder-surface-400 transition-all hover:border-surface-300 focus:border-brand-500"
+                                    placeholder="Enter your password"
+                                >
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            id="loginButton"
+                            class="w-full py-3 px-4 bg-gradient-to-r from-expert-500 to-expert-600 hover:from-expert-600 hover:to-expert-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                        >
+                            <span id="loginButtonText">Sign In</span>
+                            <span id="loginSpinner" class="hidden animate-spin">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </span>
+                            <span class="material-symbols-outlined text-xl" id="loginArrow">arrow_forward</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Register Link -->
+                <div class="px-8 py-4 bg-surface-50 border-t border-surface-100 text-center">
+                    <p class="text-sm text-surface-600">
+                        Don't have an account?
+                        <a href="register.html" class="font-semibold text-brand-600 hover:text-brand-700 transition-colors">Register here</a>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Back to Home -->
+            <div class="mt-6 text-center">
+                <a href="index.html" class="text-sm text-surface-500 hover:text-surface-700 transition-colors inline-flex items-center gap-1">
+                    <span class="material-symbols-outlined text-lg">arrow_back</span>
+                    Back to role selection
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="p-6">
+        <div class="max-w-6xl mx-auto text-center">
+            <p class="text-xs text-surface-400">Succession v1.0 - Preserving Institutional Knowledge</p>
+        </div>
+    </footer>
+
+    <script>
+        // Check for existing valid token on page load
+        async function checkExistingToken() {
+            const token = localStorage.getItem('succession_token');
+            if (!token) return;
+
+            try {
+                const response = await fetch('/auth/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    // Valid token, redirect to expert portal
+                    window.location.href = 'expert/index.html';
+                } else {
+                    // Invalid token, clear it
+                    localStorage.removeItem('succession_token');
+                    localStorage.removeItem('succession_expert');
+                }
+            } catch (error) {
+                console.error('Token validation error:', error);
+            }
+        }
+
+        // Run on page load
+        checkExistingToken();
+
+        // Handle login form submission
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const errorMessage = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            const loginButton = document.getElementById('loginButton');
+            const loginButtonText = document.getElementById('loginButtonText');
+            const loginSpinner = document.getElementById('loginSpinner');
+            const loginArrow = document.getElementById('loginArrow');
+
+            // Hide previous error
+            errorMessage.classList.add('hidden');
+
+            // Show loading state
+            loginButton.disabled = true;
+            loginButtonText.textContent = 'Signing in...';
+            loginSpinner.classList.remove('hidden');
+            loginArrow.classList.add('hidden');
+
+            try {
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Store token and expert info
+                    localStorage.setItem('succession_token', data.token);
+                    localStorage.setItem('succession_expert', JSON.stringify(data.expert));
+
+                    // Redirect to expert portal
+                    window.location.href = 'expert/index.html';
+                } else {
+                    // Show error
+                    errorText.textContent = data.error || 'Login failed. Please try again.';
+                    errorMessage.classList.remove('hidden');
+
+                    // Reset button
+                    loginButton.disabled = false;
+                    loginButtonText.textContent = 'Sign In';
+                    loginSpinner.classList.add('hidden');
+                    loginArrow.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                errorText.textContent = 'Connection error. Please try again.';
+                errorMessage.classList.remove('hidden');
+
+                // Reset button
+                loginButton.disabled = false;
+                loginButtonText.textContent = 'Sign In';
+                loginSpinner.classList.add('hidden');
+                loginArrow.classList.remove('hidden');
+            }
+        });
+    </script>
+
+</body>
+</html>
