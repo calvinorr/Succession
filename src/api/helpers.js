@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const jwt = require('jsonwebtoken');
 const dal = require('../dal/dal');
 const llm = require('../services/llm');
 const noteTaker = require('../agents/note-taker');
@@ -7,6 +8,43 @@ const noteTaker = require('../agents/note-taker');
 // Configuration
 const SNAPSHOT_INTERVAL = 5;
 const BCRYPT_ROUNDS = 10;
+const JWT_SECRET = process.env.JWT_SECRET || 'succession-dev-secret-change-in-production';
+const TOKEN_EXPIRY = '24h';
+
+/**
+ * Generate a JWT token for an expert
+ */
+function generateToken(expert) {
+  return jwt.sign(
+    { expertId: expert.id, username: expert.username },
+    JWT_SECRET,
+    { expiresIn: TOKEN_EXPIRY }
+  );
+}
+
+/**
+ * Verify and decode a JWT token
+ * Returns the decoded payload or null if invalid
+ */
+function verifyToken(token) {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Extract token from Authorization header
+ * Supports "Bearer <token>" format
+ */
+function extractToken(req) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+  return null;
+}
 
 /**
  * Helper to list all files in a data directory
@@ -196,6 +234,11 @@ async function createSnapshot(interviewId) {
 module.exports = {
   SNAPSHOT_INTERVAL,
   BCRYPT_ROUNDS,
+  JWT_SECRET,
+  TOKEN_EXPIRY,
+  generateToken,
+  verifyToken,
+  extractToken,
   listDataDir,
   generateId,
   levenshteinSimilarity,

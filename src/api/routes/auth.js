@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const dal = require('../../dal/dal');
-const { BCRYPT_ROUNDS } = require('../helpers');
+const { BCRYPT_ROUNDS, generateToken, verifyToken, extractToken } = require('../helpers');
 
 // POST /auth/register - Create a new expert account
 router.post('/register', async (req, res) => {
@@ -86,10 +86,13 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Note: Story 1.2 will add proper session/token management
+    // Generate JWT token
+    const token = generateToken(expert);
     const { passwordHash: _, ...safeExpert } = expert;
     res.json({
       message: 'Login successful',
+      token,
+      expiresIn: '24h',
       expert: safeExpert,
     });
   } catch (error) {
@@ -103,18 +106,34 @@ router.post('/login', async (req, res) => {
 
 // POST /auth/logout - Invalidate session
 router.post('/logout', (req, res) => {
-  // Note: Story 1.2 will add proper session invalidation
-  res.json({ message: 'Logout successful' });
+  // JWT tokens are stateless - client should discard the token
+  // For additional security, implement a token blacklist if needed
+  res.json({ message: 'Logout successful. Please discard your token.' });
 });
 
 // GET /auth/me - Get current expert profile
 router.get('/me', (req, res) => {
   try {
-    const expertId = req.query.expertId || req.headers['x-expert-id'];
+    // Try JWT token first (Authorization: Bearer <token>)
+    const token = extractToken(req);
+    let expertId = null;
+
+    if (token) {
+      const decoded = verifyToken(token);
+      if (!decoded) {
+        return res.status(401).json({
+          error: 'Invalid or expired token.',
+        });
+      }
+      expertId = decoded.expertId;
+    } else {
+      // Fallback to legacy methods for backwards compatibility
+      expertId = req.query.expertId || req.headers['x-expert-id'];
+    }
 
     if (!expertId) {
       return res.status(401).json({
-        error: 'Authentication required. Provide expertId.',
+        error: 'Authentication required. Provide Authorization header with Bearer token.',
       });
     }
 
@@ -139,11 +158,26 @@ router.get('/me', (req, res) => {
 // PUT /auth/me - Update current expert profile
 router.put('/me', async (req, res) => {
   try {
-    const expertId = req.query.expertId || req.headers['x-expert-id'];
+    // Try JWT token first (Authorization: Bearer <token>)
+    const token = extractToken(req);
+    let expertId = null;
+
+    if (token) {
+      const decoded = verifyToken(token);
+      if (!decoded) {
+        return res.status(401).json({
+          error: 'Invalid or expired token.',
+        });
+      }
+      expertId = decoded.expertId;
+    } else {
+      // Fallback to legacy methods for backwards compatibility
+      expertId = req.query.expertId || req.headers['x-expert-id'];
+    }
 
     if (!expertId) {
       return res.status(401).json({
-        error: 'Authentication required. Provide expertId.',
+        error: 'Authentication required. Provide Authorization header with Bearer token.',
       });
     }
 
