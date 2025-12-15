@@ -47,6 +47,66 @@ function extractToken(req) {
 }
 
 /**
+ * Authentication middleware for protected routes
+ * Validates JWT token and attaches expert to req.expert
+ */
+function authMiddleware(req, res, next) {
+  const token = extractToken(req);
+
+  if (!token) {
+    return res.status(401).json({
+      error: 'Authentication required',
+      message: 'Please provide a valid token in the Authorization header'
+    });
+  }
+
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    return res.status(401).json({
+      error: 'Invalid or expired token',
+      message: 'Please login again to get a new token'
+    });
+  }
+
+  // Load expert from database
+  const expert = dal.readData(`experts/${decoded.expertId}`);
+  if (!expert) {
+    return res.status(401).json({
+      error: 'Expert not found',
+      message: 'The account associated with this token no longer exists'
+    });
+  }
+
+  // Attach expert to request (without password hash)
+  const { passwordHash, ...safeExpert } = expert;
+  req.expert = safeExpert;
+  req.expertId = decoded.expertId;
+
+  next();
+}
+
+/**
+ * Optional auth middleware - doesn't fail if no token, but attaches expert if valid
+ */
+function optionalAuthMiddleware(req, res, next) {
+  const token = extractToken(req);
+
+  if (token) {
+    const decoded = verifyToken(token);
+    if (decoded) {
+      const expert = dal.readData(`experts/${decoded.expertId}`);
+      if (expert) {
+        const { passwordHash, ...safeExpert } = expert;
+        req.expert = safeExpert;
+        req.expertId = decoded.expertId;
+      }
+    }
+  }
+
+  next();
+}
+
+/**
  * Helper to list all files in a data directory
  */
 function listDataDir(subdir) {
@@ -239,6 +299,8 @@ module.exports = {
   generateToken,
   verifyToken,
   extractToken,
+  authMiddleware,
+  optionalAuthMiddleware,
   listDataDir,
   generateId,
   levenshteinSimilarity,

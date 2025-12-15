@@ -10,6 +10,7 @@ const interviewer = require('../../agents/interviewer');
 const noteTaker = require('../../agents/note-taker');
 const personaBuilder = require('../../agents/persona-builder');
 const knowledgeBuilder = require('../../agents/knowledge-builder');
+const { authMiddleware, optionalAuthMiddleware } = require('../helpers');
 const fs = require('fs');
 const path = require('path');
 
@@ -312,6 +313,13 @@ router.get('/dashboard/stats', (req, res) => {
     });
   }
 });
+
+// ============================================
+// PROTECTED ROUTES - Require authentication
+// ============================================
+// Apply auth middleware to interview and topic routes
+router.use('/interviews', authMiddleware);
+router.use('/topics', authMiddleware);
 
 // GET /interviews - List all interviews
 router.get('/interviews', (req, res) => {
