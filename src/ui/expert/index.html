@@ -135,6 +135,24 @@
                         <p class="text-xs text-surface-400">Topics</p>
                     </div>
                 </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-amber-600 text-[18px]">article</span>
+                    </div>
+                    <div>
+                        <p id="stat-subtopics" class="text-lg font-bold text-amber-600">0</p>
+                        <p class="text-xs text-surface-400">Subtopics</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-expert-100 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-expert-600 text-[18px]">check_circle</span>
+                    </div>
+                    <div>
+                        <p id="stat-published" class="text-lg font-bold text-expert-600">0</p>
+                        <p class="text-xs text-surface-400">Published</p>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -272,8 +290,13 @@
 
         function updateStats() {
             const totalTopics = allTasks.reduce((sum, task) => sum + (task.topicCount || 0), 0);
+            const totalSubtopics = allTasks.reduce((sum, task) => sum + (task.subtopicCount || 0), 0);
+            const totalPublished = allTasks.reduce((sum, task) => sum + (task.publishedCount || 0), 0);
+
             document.getElementById('stat-tasks').textContent = allTasks.length;
             document.getElementById('stat-topics').textContent = totalTopics;
+            document.getElementById('stat-subtopics').textContent = totalSubtopics;
+            document.getElementById('stat-published').textContent = totalPublished;
         }
 
         function renderTasks() {
@@ -296,10 +319,34 @@
         }
 
         function renderTaskCard(task, index, totalTasks) {
-            const topicText = task.topicCount === 1 ? '1 topic' : `${task.topicCount || 0} topics`;
+            const topicCount = task.topicCount || 0;
+            const subtopicCount = task.subtopicCount || 0;
+            const progressPercent = task.progressPercent || 0;
             const isFirst = index === 0;
             const isLast = index === totalTasks - 1;
             const showReorder = totalTasks > 1;
+
+            // Format counts text
+            const topicText = topicCount === 1 ? '1 topic' : `${topicCount} topics`;
+            const subtopicText = subtopicCount === 1 ? '1 subtopic' : `${subtopicCount} subtopics`;
+
+            // Progress bar color based on completion
+            const progressColor = progressPercent === 100 ? 'bg-expert-500' :
+                                  progressPercent > 0 ? 'bg-brand-500' : 'bg-surface-200';
+
+            // Progress text
+            let progressText = '';
+            if (subtopicCount === 0) {
+                progressText = 'Add topics to get started';
+            } else if (progressPercent === 100) {
+                progressText = 'Complete';
+            } else {
+                progressText = `${progressPercent}% complete`;
+            }
+
+            // Status breakdown for tooltip
+            const statusCounts = task.statusCounts || {};
+            const statusTooltip = subtopicCount > 0 ? `Draft: ${statusCounts.draft || 0}, Interviewed: ${statusCounts.interviewed || 0}, Analysed: ${statusCounts['ai-analysed'] || 0}, Reviewed: ${statusCounts.reviewed || 0}, Published: ${statusCounts.published || 0}` : '';
 
             return `
                 <div onclick="viewTask('${task.id}')" class="bg-surface-0 rounded-xl border border-surface-200/60 shadow-card hover:shadow-lg hover:border-expert-200 transition-all p-5 cursor-pointer group" data-task-id="${task.id}">
@@ -325,11 +372,24 @@
                             <div class="flex items-center gap-2 mb-1">
                                 <h3 class="font-semibold text-surface-800 truncate group-hover:text-expert-700 transition-colors">${task.name}</h3>
                             </div>
-                            ${task.description ? `<p class="text-sm text-surface-500 line-clamp-2 mb-2">${task.description}</p>` : ''}
-                            <div class="flex items-center gap-3 text-xs text-surface-400">
+                            ${task.description ? `<p class="text-sm text-surface-500 line-clamp-1 mb-2">${task.description}</p>` : ''}
+                            <div class="flex items-center gap-3 text-xs text-surface-400 mb-3">
                                 <span class="flex items-center gap-1">
                                     <span class="material-symbols-outlined text-[14px]">folder</span>
                                     ${topicText}
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px]">article</span>
+                                    ${subtopicText}
+                                </span>
+                            </div>
+                            <!-- Progress Bar -->
+                            <div class="flex items-center gap-3" ${statusTooltip ? `title="${statusTooltip}"` : ''}>
+                                <div class="flex-1 h-2 bg-surface-100 rounded-full overflow-hidden">
+                                    <div class="${progressColor} h-full rounded-full transition-all duration-300" style="width: ${progressPercent}%"></div>
+                                </div>
+                                <span class="text-xs ${progressPercent === 100 ? 'text-expert-600 font-medium' : 'text-surface-400'} whitespace-nowrap">
+                                    ${progressText}
                                 </span>
                             </div>
                         </div>

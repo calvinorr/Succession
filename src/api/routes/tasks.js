@@ -12,7 +12,7 @@ const { authMiddleware, generateId, listDataDir } = require('../helpers');
 router.use(authMiddleware);
 
 /**
- * GET /tasks - List current expert's tasks
+ * GET /tasks - List current expert's tasks with progress metrics
  */
 router.get('/', (req, res) => {
   try {
@@ -24,21 +24,56 @@ router.get('/', (req, res) => {
       .filter(task => task && task.expertId === expertId)
       .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    // Add computed topic counts
-    const topicIds = listDataDir('topics');
-    const tasksWithCounts = tasks.map(task => {
-      const topicCount = topicIds
-        .map(id => dal.readData(`topics/${id}`))
-        .filter(topic => topic && topic.taskId === task.id)
-        .length;
+    // Load all topics and subtopics once for efficiency
+    const allTopics = listDataDir('topics')
+      .map(id => dal.readData(`topics/${id}`))
+      .filter(Boolean);
+
+    const allSubtopics = listDataDir('subtopics')
+      .map(id => dal.readData(`subtopics/${id}`))
+      .filter(Boolean);
+
+    // Add computed counts and progress for each task
+    const tasksWithProgress = tasks.map(task => {
+      const taskTopics = allTopics.filter(t => t.taskId === task.id);
+      const taskSubtopics = allSubtopics.filter(s => s.taskId === task.id);
+
+      // Count subtopics by status
+      const statusCounts = {
+        draft: 0,
+        interviewed: 0,
+        'ai-analysed': 0,
+        reviewed: 0,
+        published: 0
+      };
+
+      taskSubtopics.forEach(subtopic => {
+        const status = subtopic.status || 'draft';
+        if (statusCounts.hasOwnProperty(status)) {
+          statusCounts[status]++;
+        } else {
+          statusCounts.draft++;
+        }
+      });
+
+      // Calculate progress percentage (published / total)
+      const totalSubtopics = taskSubtopics.length;
+      const publishedSubtopics = statusCounts.published;
+      const progressPercent = totalSubtopics > 0
+        ? Math.round((publishedSubtopics / totalSubtopics) * 100)
+        : 0;
 
       return {
         ...task,
-        topicCount
+        topicCount: taskTopics.length,
+        subtopicCount: totalSubtopics,
+        publishedCount: publishedSubtopics,
+        progressPercent,
+        statusCounts
       };
     });
 
-    res.json(tasksWithCounts);
+    res.json(tasksWithProgress);
   } catch (error) {
     console.error('Error listing tasks:', error);
     res.status(500).json({
