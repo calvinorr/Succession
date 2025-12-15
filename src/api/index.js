@@ -13,10 +13,12 @@ app.use(express.static('src/ui'));
 
 // Route modules
 const authRoutes = require('./routes/auth');
+const taskRoutes = require('./routes/tasks');
 const legacyRoutes = require('./routes/legacy');
 
 // Mount routes
 app.use('/auth', authRoutes);
+app.use('/tasks', taskRoutes);
 app.use('/', legacyRoutes);
 
 // Start server
