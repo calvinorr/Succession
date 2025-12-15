@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Succession | Task Detail - Expert Portal</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand': {
+                            50: '#eef4ff', 100: '#d9e5ff', 200: '#bcd2ff', 300: '#8eb5ff',
+                            400: '#598eff', 500: '#3366ff', 600: '#1a44f5', 700: '#1333e1',
+                            800: '#162bb6', 900: '#182a8f',
+                        },
+                        'surface': {
+                            0: '#ffffff', 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0',
+                            300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569',
+                            700: '#334155', 800: '#1e293b', 900: '#0f172a',
+                        },
+                        'expert': {
+                            50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac',
+                            400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d',
+                        }
+                    },
+                    fontFamily: {
+                        'display': ['"DM Serif Display"', 'serif'],
+                        'body': ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glow': '0 0 40px -10px rgba(51, 102, 255, 0.3)',
+                        'card': '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)',
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
+</head>
+
+<body class="bg-surface-50 font-body text-surface-800 min-h-screen">
+    <!-- Header -->
+    <header class="bg-surface-0 border-b border-surface-200/60">
+        <div class="max-w-4xl mx-auto px-8 py-6">
+            <!-- Breadcrumb -->
+            <nav class="flex items-center gap-2 text-sm mb-4">
+                <a href="index.html" class="text-surface-500 hover:text-expert-600 transition-colors">My Tasks</a>
+                <span class="material-symbols-outlined text-surface-300 text-[16px]">chevron_right</span>
+                <span id="breadcrumb-task" class="text-surface-700 font-medium">Loading...</span>
+            </nav>
+
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 id="task-name" class="font-display text-2xl text-surface-900">Loading...</h1>
+                    <p id="task-description" class="text-sm text-surface-500 mt-1"></p>
+                </div>
+                <a href="index.html" class="flex items-center gap-2 px-4 py-2 text-surface-500 hover:text-surface-700 hover:bg-surface-100 rounded-lg transition-all">
+                    <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+                    Back to Tasks
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-8 py-8">
+        <div id="task-loading" class="text-center py-12">
+            <span class="material-symbols-outlined text-4xl text-surface-300 animate-spin">progress_activity</span>
+            <p class="text-sm text-surface-400 mt-2">Loading task...</p>
+        </div>
+
+        <div id="task-content" class="hidden">
+            <!-- Placeholder for Topics List (Story 2.3) -->
+            <div class="bg-surface-0 rounded-xl border border-surface-200/60 shadow-card p-8 text-center">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-100 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-brand-500 text-3xl">construction</span>
+                </div>
+                <h2 class="font-display text-xl text-surface-800 mb-2">Topics Coming Soon</h2>
+                <p class="text-sm text-surface-500 max-w-md mx-auto">
+                    This page will display the topics within this task. Topic management will be implemented in the next phase.
+                </p>
+                <div class="mt-6 flex items-center justify-center gap-3">
+                    <div class="px-3 py-1.5 rounded-full bg-surface-100 text-xs text-surface-500">
+                        Story 3.3: Task detail page with Topics
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Info Card -->
+            <div class="mt-6 bg-surface-0 rounded-xl border border-surface-200/60 shadow-card p-6">
+                <h3 class="font-semibold text-surface-700 mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[20px]">info</span>
+                    Task Information
+                </h3>
+                <dl class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <dt class="text-surface-400">Created</dt>
+                        <dd id="task-created" class="text-surface-700 font-medium">-</dd>
+                    </div>
+                    <div>
+                        <dt class="text-surface-400">Last Updated</dt>
+                        <dd id="task-updated" class="text-surface-700 font-medium">-</dd>
+                    </div>
+                    <div>
+                        <dt class="text-surface-400">Topics</dt>
+                        <dd id="task-topics" class="text-surface-700 font-medium">0</dd>
+                    </div>
+                    <div>
+                        <dt class="text-surface-400">Subtopics</dt>
+                        <dd id="task-subtopics" class="text-surface-700 font-medium">0</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+
+        <div id="task-error" class="hidden text-center py-12">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-100 flex items-center justify-center">
+                <span class="material-symbols-outlined text-red-500 text-3xl">error</span>
+            </div>
+            <h2 class="font-semibold text-surface-700 mb-2">Task Not Found</h2>
+            <p class="text-sm text-surface-500 mb-4">The task you're looking for doesn't exist or you don't have access to it.</p>
+            <a href="index.html" class="inline-flex items-center gap-2 px-4 py-2.5 bg-expert-500 hover:bg-expert-600 text-white rounded-xl font-semibold transition-all">
+                <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+                Back to My Tasks
+            </a>
+        </div>
+    </main>
+
+    <script>
+        const token = localStorage.getItem('authToken');
+        const urlParams = new URLSearchParams(window.location.search);
+        const taskId = urlParams.get('id');
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!token) {
+                window.location.href = '../login.html';
+                return;
+            }
+
+            if (!taskId) {
+                showError();
+                return;
+            }
+
+            try {
+                const res = await fetch(`/tasks/${taskId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    throw new Error('Task not found');
+                }
+
+                const task = await res.json();
+                displayTask(task);
+            } catch (error) {
+                console.error('Error loading task:', error);
+                showError();
+            }
+        });
+
+        function displayTask(task) {
+            document.getElementById('task-loading').classList.add('hidden');
+            document.getElementById('task-content').classList.remove('hidden');
+
+            document.title = `Succession | ${task.name} - Expert Portal`;
+            document.getElementById('breadcrumb-task').textContent = task.name;
+            document.getElementById('task-name').textContent = task.name;
+            document.getElementById('task-description').textContent = task.description || 'No description';
+
+            document.getElementById('task-created').textContent = formatDate(task.createdAt);
+            document.getElementById('task-updated').textContent = formatDate(task.updatedAt);
+            document.getElementById('task-topics').textContent = task.topicCount || 0;
+            document.getElementById('task-subtopics').textContent = task.subtopicCount || 0;
+        }
+
+        function showError() {
+            document.getElementById('task-loading').classList.add('hidden');
+            document.getElementById('task-error').classList.remove('hidden');
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
+            });
+        }
+    </script>
+</body>
+</html>
