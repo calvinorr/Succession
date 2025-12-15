@@ -292,15 +292,32 @@
             empty.classList.add('hidden');
             container.classList.remove('hidden');
 
-            container.innerHTML = allTasks.map(task => renderTaskCard(task)).join('');
+            container.innerHTML = allTasks.map((task, index) => renderTaskCard(task, index, allTasks.length)).join('');
         }
 
-        function renderTaskCard(task) {
+        function renderTaskCard(task, index, totalTasks) {
             const topicText = task.topicCount === 1 ? '1 topic' : `${task.topicCount || 0} topics`;
+            const isFirst = index === 0;
+            const isLast = index === totalTasks - 1;
+            const showReorder = totalTasks > 1;
 
             return `
-                <div onclick="viewTask('${task.id}')" class="bg-surface-0 rounded-xl border border-surface-200/60 shadow-card hover:shadow-lg hover:border-expert-200 transition-all p-5 cursor-pointer group">
+                <div onclick="viewTask('${task.id}')" class="bg-surface-0 rounded-xl border border-surface-200/60 shadow-card hover:shadow-lg hover:border-expert-200 transition-all p-5 cursor-pointer group" data-task-id="${task.id}">
                     <div class="flex items-start gap-4">
+                        ${showReorder ? `
+                        <div class="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="event.stopPropagation(); moveTask('${task.id}', 'up')"
+                                class="p-1 rounded hover:bg-surface-100 text-surface-300 hover:text-surface-600 transition-colors ${isFirst ? 'invisible' : ''}"
+                                ${isFirst ? 'disabled' : ''}>
+                                <span class="material-symbols-outlined text-[16px]">keyboard_arrow_up</span>
+                            </button>
+                            <button onclick="event.stopPropagation(); moveTask('${task.id}', 'down')"
+                                class="p-1 rounded hover:bg-surface-100 text-surface-300 hover:text-surface-600 transition-colors ${isLast ? 'invisible' : ''}"
+                                ${isLast ? 'disabled' : ''}>
+                                <span class="material-symbols-outlined text-[16px]">keyboard_arrow_down</span>
+                            </button>
+                        </div>
+                        ` : ''}
                         <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-expert-100 to-expert-200 flex items-center justify-center flex-shrink-0 group-hover:from-expert-200 group-hover:to-expert-300 transition-all">
                             <span class="material-symbols-outlined text-expert-600 text-[24px]">task_alt</span>
                         </div>
@@ -316,18 +333,51 @@
                                 </span>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <button onclick="event.stopPropagation(); editTask('${task.id}')" class="p-2 rounded-lg hover:bg-surface-100 text-surface-400 hover:text-surface-600 transition-colors opacity-0 group-hover:opacity-100">
+                        <div class="flex items-center gap-1">
+                            <button onclick="event.stopPropagation(); editTask('${task.id}')" class="p-2 rounded-lg hover:bg-surface-100 text-surface-400 hover:text-surface-600 transition-colors opacity-0 group-hover:opacity-100" title="Edit task">
                                 <span class="material-symbols-outlined text-[18px]">edit</span>
                             </button>
-                            <button onclick="event.stopPropagation(); deleteTask('${task.id}')" class="p-2 rounded-lg hover:bg-red-50 text-surface-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                            <button onclick="event.stopPropagation(); deleteTask('${task.id}')" class="p-2 rounded-lg hover:bg-red-50 text-surface-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100" title="Delete task">
                                 <span class="material-symbols-outlined text-[18px]">delete</span>
                             </button>
-                            <span class="material-symbols-outlined text-surface-300 group-hover:text-expert-500 transition-colors">chevron_right</span>
+                            <span class="material-symbols-outlined text-surface-300 group-hover:text-expert-500 transition-colors ml-1">chevron_right</span>
                         </div>
                     </div>
                 </div>
             `;
+        }
+
+        async function moveTask(taskId, direction) {
+            const currentIndex = allTasks.findIndex(t => t.id === taskId);
+            if (currentIndex === -1) return;
+
+            const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+            if (newIndex < 0 || newIndex >= allTasks.length) return;
+
+            // Reorder locally for immediate feedback
+            const taskIds = allTasks.map(t => t.id);
+            [taskIds[currentIndex], taskIds[newIndex]] = [taskIds[newIndex], taskIds[currentIndex]];
+
+            // Update UI immediately
+            [allTasks[currentIndex], allTasks[newIndex]] = [allTasks[newIndex], allTasks[currentIndex]];
+            renderTasks();
+
+            try {
+                const res = await fetch('/tasks/reorder', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ taskIds })
+                });
+
+                if (!res.ok) throw new Error('Failed to reorder tasks');
+            } catch (error) {
+                console.error('Error reordering tasks:', error);
+                // Reload to get correct order on error
+                loadTasks();
+            }
         }
 
         function viewTask(taskId) {
@@ -364,6 +414,9 @@
         async function saveTask(event) {
             event.preventDefault();
 
+            const submitBtn = document.querySelector('#task-form button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+
             const taskId = document.getElementById('task-id').value;
             const name = document.getElementById('task-name').value.trim();
             const description = document.getElementById('task-description').value.trim();
@@ -372,6 +425,10 @@
                 alert('Task name is required');
                 return;
             }
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span> Saving...';
 
             const data = { name, description };
 
@@ -404,6 +461,9 @@
             } catch (error) {
                 console.error('Error saving task:', error);
                 alert('Failed to save task. Please try again.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
             }
         }
 
@@ -416,6 +476,13 @@
 
             if (!confirm(message)) return;
 
+            // Show loading state on the card
+            const card = document.querySelector(`[data-task-id="${taskId}"]`);
+            if (card) {
+                card.style.opacity = '0.5';
+                card.style.pointerEvents = 'none';
+            }
+
             try {
                 const res = await fetch(`/tasks/${taskId}`, {
                     method: 'DELETE',
@@ -427,6 +494,11 @@
             } catch (error) {
                 console.error('Error deleting task:', error);
                 alert('Failed to delete task. Please try again.');
+                // Restore card on error
+                if (card) {
+                    card.style.opacity = '1';
+                    card.style.pointerEvents = 'auto';
+                }
             }
         }
 
